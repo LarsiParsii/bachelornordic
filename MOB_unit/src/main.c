@@ -2,13 +2,18 @@
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
 
-/* LTE link controller library: */
+#include <zephyr/bluetooth/bluetooth.h>
+#include <zephyr/bluetooth/gap.h>
+
+
+#include <nrf_modem_gnss.h>
+
+
+
+//LTE link controller library: 
 #include <modem/lte_lc.h>
 
-
 LOG_MODULE_REGISTER(MOB_unit, LOG_LEVEL_INF);
-
-
 
 static void lte_event_handler(const struct lte_lc_evt *const evt)
 {
@@ -44,8 +49,6 @@ static void lte_event_handler(const struct lte_lc_evt *const evt)
     }
 }
 
-
-
 static void modem_configure(void)
 {
     int err = lte_lc_init_and_connect_async(lte_event_handler);
@@ -55,16 +58,11 @@ static void modem_configure(void)
     }
 }
 
-
-
-
 int main(void) //can also use void main(void)?
 {
-
     modem_configure();
 
     
-    LOG_INF("Connected to LTE network");
 
     while(1){
 
