@@ -5,41 +5,28 @@
 /* LTE link controller library: */
 #include <modem/lte_lc.h>
 
+static K_SEM_DEFINE(lte_connected, 0, 1);
+
+LOG_MODULE_REGISTER(MOB_unit, LOG_LEVEL_INF);
+
+
 
 static void lte_event_handler(const struct lte_lc_evt *const evt)
 {
     switch (evt->type) {
         case LTE_LC_EVT_NW_REG_STATUS:
-            if (evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_HOME ||
-                evt->nw_reg_status == LTE_LC_NW_REG_REGISTERED_ROAMING) {
+            if (evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_HOME &&
+                evt->nw_reg_status != LTE_LC_NW_REG_REGISTERED_ROAMING) { //either conected to home or roaming to continue
                 printk("Network registration status: Connected\n");
             } else {
                 printk("Network registration status: Not connected\n");
             }
-            break;
-
-        case LTE_LC_EVT_PSM_UPDATE:
-            printk("PSM parameters updated: TAU: %d, Active time: %d\n",
-                   evt->psm_cfg.tau, evt->psm_cfg.active_time);
-            break;
-        case LTE_LC_EVT_RRC_UPDATE:
-            printk("RRC mode: %s\n",
-                   evt->rrc_mode == LTE_LC_RRC_MODE_CONNECTED ? "Connected" :
-                   "Idle");
-            break;
-
-        case LTE_LC_EVT_CELL_UPDATE:
-            printk("Cell update: TAC: %u, Cell ID: %u\n",
-                   evt->cell.tac, evt->cell.id);
             break;
         case LTE_LC_EVT_LTE_MODE_UPDATE:
             printk("LTE mode: %s\n",
                 evt->lte_mode == LTE_LC_LTE_MODE_NONE ? "None" :
                 evt->lte_mode == LTE_LC_LTE_MODE_LTEM ? "LTE-M" :
                 "NB-IoT");
-            break;
-        case LTE_LC_EVT_TAU_PRE_WARNING:
-            printk("TAU pre-warning: %llu seconds until TAU\n", evt->time);
             break;
         case LTE_LC_EVT_MODEM_SLEEP_EXIT_PRE_WARNING:
             printk("Modem sleep exit pre-warning: %llu seconds until modem exits sleep\n",
@@ -53,8 +40,36 @@ static void lte_event_handler(const struct lte_lc_evt *const evt)
             printk("Modem sleep enter: Duration %llu seconds\n",
                evt->modem_sleep.time);
             break;
-
-
     default:
         break;
+    }
 }
+
+
+
+static void modem_configure(void)
+{
+    int err = lte_lc_init_and_connect_async(lte_event_handler);
+    if (err) {
+        printk("Modem could not be configured, error: %d\n", err);
+        return;
+    }
+}
+
+
+
+
+int main(void) //can also use void main(void)?
+{
+
+    modem_configure();
+
+    k_sem_take(&lte_connected, K_FOREVER);
+    LOG_INF("Connected to LTE network");
+
+    while(1){
+
+
+    }
+}
+

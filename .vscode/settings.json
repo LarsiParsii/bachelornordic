@@ -3,5 +3,6 @@
     "nrf-connect.toolchain.path": "${nrf-connect.toolchain:2.3.0}",
     "nrf-connect.applications": [
         "${workspaceFolder}/MOB_unit"
-    ]
+    ],
+    "C_Cpp.errorSquiggles": "enabled"
 }
