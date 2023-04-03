@@ -5,7 +5,6 @@
 /* LTE link controller library: */
 #include <modem/lte_lc.h>
 
-static K_SEM_DEFINE(lte_connected, 0, 1);
 
 LOG_MODULE_REGISTER(MOB_unit, LOG_LEVEL_INF);
 
@@ -64,7 +63,7 @@ int main(void) //can also use void main(void)?
 
     modem_configure();
 
-    k_sem_take(&lte_connected, K_FOREVER);
+    
     LOG_INF("Connected to LTE network");
 
     while(1){
