@@ -10,6 +10,11 @@
 
 
 
+K_SEM_DEFINE(lte_connected, 0, 1);
+K_SEM_DEFINE(gnss_fix_sem, 0, 1);
+
+
+
 //LTE link controller library: 
 #include <modem/lte_lc.h>
 
@@ -68,5 +73,8 @@ int main(void) //can also use void main(void)?
 
 
     }
+    lte_lc_power_off();
+    LOG_ERR("Error. Shutting down.");
+
 }
 
