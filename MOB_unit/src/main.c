@@ -1,10 +1,6 @@
 #include <stdio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
-
-#include <zephyr/bluetooth/bluetooth.h>
-#include <zephyr/bluetooth/gap.h>
-
 #include <nrf_modem_gnss.h>
 
 K_SEM_DEFINE(lte_connected, 0, 1);
@@ -12,6 +8,8 @@ K_SEM_DEFINE(gnss_fix_sem, 0, 1);
 
 // LTE link controller library:
 #include <modem/lte_lc.h>
+
+
 
 
 LOG_MODULE_REGISTER(MOB_unit, LOG_LEVEL_INF);
@@ -53,6 +51,8 @@ static void lte_event_handler(const struct lte_lc_evt *const evt)
     }
 }
 
+
+
 static void modem_configure(void)
 {
     int err = lte_lc_init_and_connect_async(lte_event_handler);
@@ -61,6 +61,7 @@ static void modem_configure(void)
         printk("Modem could not be configured, error: %d\n", err);
         return;
     }
+    printk("Modem configured\n");
 }
 
 int main(void) // can also use void main(void)?
@@ -69,6 +70,7 @@ int main(void) // can also use void main(void)?
 
     while (1)
     {
+
     }
     lte_lc_power_off();
     LOG_ERR("Error. Shutting down.");
