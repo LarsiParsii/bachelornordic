@@ -8,3 +8,13 @@ Lars,
 Njål,
 Marius &
 Jonathan
+
+
+
+
+NOTES:
+
+
+LTE library:
+
+https://developer.nordicsemi.com/nRF_Connect_SDK/doc/latest/nrf/libraries/modem/lte_lc.html
