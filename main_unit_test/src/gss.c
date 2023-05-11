@@ -36,12 +36,12 @@ BT_GATT_SERVICE_DEFINE(gss_svc,
 					   BT_GATT_PRIMARY_SERVICE(BT_UUID_GSS),
 					   /* STEP 3 - Create and add the Button characteristic */
 					   BT_GATT_CHARACTERISTIC(BT_UUID_GSS_GPS,
-											  BT_GATT_CHRC_READ,
+											  BT_GATT_CHRC_READ | BT_GATT_CHRC_INDICATE,
 											  BT_GATT_PERM_READ, NULL, NULL,
 											  NULL),
 					   /* STEP 4 - Create and add the LED characteristic. */
 					   BT_GATT_CHARACTERISTIC(BT_UUID_GSS_MOB,
-											  BT_GATT_CHRC_WRITE,
+											  BT_GATT_CHRC_READ | BT_GATT_CHRC_INDICATE,
 											  BT_GATT_PERM_WRITE,
 											  NULL, NULL, NULL),
 
