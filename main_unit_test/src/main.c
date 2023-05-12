@@ -16,7 +16,7 @@
 LOG_MODULE_REGISTER(main_c, LOG_LEVEL_DBG);
 
 #define RUN_LED_BLINK_INTERVAL 1000
-#define NOTIFY_INTERVAL 500
+#define INDICATE_INTERVAL 500
 
 #define STACKSIZE 1024
 #define PRIORITY 7
@@ -38,8 +38,9 @@ void send_data_thread(void)
 	{
 		/* Send indication, the function sends notifications only if a client is subscribed */
 		gss_send_gps_indicate(getGPSData());
+		k_sleep(K_MSEC(INDICATE_INTERVAL));
 		gss_send_mob_indicate(getMOBStatus());
-		k_sleep(K_MSEC(NOTIFY_INTERVAL));
+		k_sleep(K_MSEC(INDICATE_INTERVAL));
 	}
 }
 

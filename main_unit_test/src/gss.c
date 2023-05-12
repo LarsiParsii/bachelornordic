@@ -1,11 +1,6 @@
-/*
- * Copyright (c) 2018 Nordic Semiconductor ASA
- *
- * SPDX-License-Identifier: LicenseRef-Nordic-5-Clause
- */
-
-/** @file
- *  @brief LED Button Service (LBS) sample
+/**
+ * @file gss.c
+ * @brief Implementation of the GPS Sensor Service (GSS).
  */
 
 #include <zephyr/types.h>
@@ -40,7 +35,12 @@ static struct bt_gatt_indicate_params ind_params_mob;	// Indication parameters f
 
 /* CALLBACKS */
 
-/* A function to register application callbacks */
+/**
+ * @brief Registers application callbacks for the GSS service.
+ *
+ * @param callbacks Pointer to the structure containing the callback functions.
+ * @return int 0 on success, negative error code otherwise.
+ */
 int gss_init(gss_cb_s *callbacks)
 {
 	if (callbacks)
@@ -52,6 +52,16 @@ int gss_init(gss_cb_s *callbacks)
 	return 0;
 }
 
+/**
+ * @brief Callback invoked when reading MOB event status.
+ *
+ * @param conn Connection object.
+ * @param attr Attribute object.
+ * @param buf Buffer to store the attribute value.
+ * @param len Length of the buffer.
+ * @param offset Offset within the attribute value.
+ * @return ssize_t Number of bytes read, or negative error code on failure.
+ */
 static ssize_t read_mob_event_status(struct bt_conn *conn,
 									 const struct bt_gatt_attr *attr,
 									 void *buf,
@@ -112,8 +122,19 @@ static ssize_t read_gps_data(struct bt_conn *conn,
 	return 0;
 }
 
+/* INDICATION FUNCTIONS */
 
-/* CCCD CALLBACKS */
+static void gss_ccc_gps_changed(const struct bt_gatt_attr *attr,
+								uint16_t value)
+{
+	indicate_enabled_gps = (value == BT_GATT_CCC_INDICATE);
+}
+static void gss_ccc_mob_changed(const struct bt_gatt_attr *attr,
+								uint16_t value)
+{
+	indicate_enabled_mob = (value == BT_GATT_CCC_INDICATE);
+}
+
 //This function is called when a remote device has acknowledged the indication at its host layer
 static void indicate_started_gps_cb(struct bt_conn *conn,
 			struct bt_gatt_indicate_params *params, uint8_t err)
@@ -127,22 +148,11 @@ static void indicate_started_mob_cb(struct bt_conn *conn,
 }
 static void indicate_ended_gps_cb()
 {
-	LOG_DBG("GPS indication ended.\n");
+	LOG_DBG("GPS indication finished.\n");
 }
 static void indicate_ended_mob_cb()
 {
-	LOG_DBG("MOB indication ended.\n");
-}
-
-static void gss_ccc_gps_changed(const struct bt_gatt_attr *attr,
-				  uint16_t value)
-{
-	indicate_enabled_gps = (value == BT_GATT_CCC_INDICATE);
-}
-static void gss_ccc_mob_changed(const struct bt_gatt_attr *attr,
-				  uint16_t value)
-{
-	indicate_enabled_mob = (value == BT_GATT_CCC_INDICATE);
+	LOG_DBG("MOB indication finished.\n");
 }
 
 /* INDICATIONS */
@@ -156,6 +166,7 @@ int gss_send_gps_indicate(gps_data_s gps_data)
 	ind_params_gps.destroy = indicate_ended_gps_cb;
 	ind_params_gps.data = &gps_data;
 	ind_params_gps.len = sizeof(gps_data);
+	LOG_DBG("Sending GPS indication");
 	return bt_gatt_indicate(NULL, &ind_params_gps);
 }
 
