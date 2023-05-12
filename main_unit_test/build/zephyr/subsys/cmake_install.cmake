@@ -1,4 +1,4 @@
-# Install script for directory: A:/nordicsemi/v2.3.0/zephyr/subsys
+# Install script for directory: C:/ncs/v2.3.0/zephyr/subsys
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -34,116 +34,116 @@ endif()
 
 # Set default install directory permissions.
 if(NOT DEFINED CMAKE_OBJDUMP)
-  set(CMAKE_OBJDUMP "A:/nordicsemi/toolchains/v2.3.0/opt/zephyr-sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-objdump.exe")
+  set(CMAKE_OBJDUMP "C:/ncs/toolchains/v2.3.0/opt/zephyr-sdk/arm-zephyr-eabi/bin/arm-zephyr-eabi-objdump.exe")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/debug/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/debug/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/logging/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/logging/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/bluetooth/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/bluetooth/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/fs/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/fs/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/ipc/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/ipc/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/mgmt/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/mgmt/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/net/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/net/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/usb/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/usb/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/random/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/random/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/storage/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/storage/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/settings/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/settings/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/fb/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/fb/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/portability/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/portability/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/pm/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/pm/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/stats/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/stats/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/task_wdt/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/task_wdt/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/testsuite/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/testsuite/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/tracing/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/tracing/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/canbus/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/canbus/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/modbus/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/modbus/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/sd/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/sd/cmake_install.cmake")
 endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for the subdirectory.
-  include("A:/bachelornordic/main_unit_test/build/zephyr/subsys/rtio/cmake_install.cmake")
+  include("C:/ncs/bachelornordic/main_unit_test/build/zephyr/subsys/rtio/cmake_install.cmake")
 endif()
 

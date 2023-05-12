@@ -29,21 +29,26 @@
 
 LOG_MODULE_REGISTER(gss, LOG_LEVEL_DBG);
 
-static struct gss_cb_s gss_cb;
-static bool mob_status;
-static gps_data_s gps_data;
+static gss_cb_s		gss_cb;
+static gps_data_s	gps_data;
+static bool			mob_status;
+
+static bool indicate_enabled_gps;
+static bool indicate_enabled_mob;
+static struct bt_gatt_indicate_params ind_params_gps;	// Indication parameters for GPS data
+static struct bt_gatt_indicate_params ind_params_mob;	// Indication parameters for MOB event
 
 /* CALLBACKS */
 
 /* A function to register application callbacks */
-int gss_init(struct gss_cb_s *callbacks)
+int gss_init(gss_cb_s *callbacks)
 {
 	if (callbacks)
 	{
 		gss_cb.gps_cb = callbacks->gps_cb;
 		gss_cb.mob_cb = callbacks->mob_cb;
 	}
-
+	
 	return 0;
 }
 
@@ -107,23 +112,88 @@ static ssize_t read_gps_data(struct bt_conn *conn,
 	return 0;
 }
 
+
+/* CCCD CALLBACKS */
+//This function is called when a remote device has acknowledged the indication at its host layer
+static void indicate_started_gps_cb(struct bt_conn *conn,
+			struct bt_gatt_indicate_params *params, uint8_t err)
+{
+	LOG_DBG("GPS indication started %s\n", err != 0U ? "fail" : "success");
+}
+static void indicate_started_mob_cb(struct bt_conn *conn,
+			struct bt_gatt_indicate_params *params, uint8_t err)
+{
+	LOG_DBG("MOB indication started %s\n", err != 0U ? "fail" : "success");
+}
+static void indicate_ended_gps_cb()
+{
+	LOG_DBG("GPS indication ended.\n");
+}
+static void indicate_ended_mob_cb()
+{
+	LOG_DBG("MOB indication ended.\n");
+}
+
+static void gss_ccc_gps_changed(const struct bt_gatt_attr *attr,
+				  uint16_t value)
+{
+	indicate_enabled_gps = (value == BT_GATT_CCC_INDICATE);
+}
+static void gss_ccc_mob_changed(const struct bt_gatt_attr *attr,
+				  uint16_t value)
+{
+	indicate_enabled_mob = (value == BT_GATT_CCC_INDICATE);
+}
+
+/* INDICATIONS */
+int gss_send_gps_indicate(gps_data_s gps_data)
+{
+	if (!indicate_enabled_gps) {
+		return -EACCES;
+	}
+	ind_params_gps.uuid = BT_UUID_GSS_GPS;
+	ind_params_gps.func = indicate_started_gps_cb; //A remote device has ACKed at its host layer (ATT ACK)
+	ind_params_gps.destroy = indicate_ended_gps_cb;
+	ind_params_gps.data = &gps_data;
+	ind_params_gps.len = sizeof(gps_data);
+	return bt_gatt_indicate(NULL, &ind_params_gps);
+}
+
+int gss_send_mob_indicate(bool mob_status)
+{
+	if (!indicate_enabled_mob)
+	{
+		return -EACCES;
+	}
+	ind_params_mob.uuid = BT_UUID_GSS_MOB;
+	ind_params_mob.func = indicate_started_mob_cb; // A remote device has ACKed at its host layer (ATT ACK)
+	ind_params_mob.destroy = indicate_ended_mob_cb;
+	ind_params_mob.data = &mob_status;
+	ind_params_mob.len = sizeof(mob_status);
+	return bt_gatt_indicate(NULL, &ind_params_mob);
+}
+
 /* GPS Sensor Service Declaration */
 /* Creates and adds the GSS service to the Bluetooth LE stack */
 BT_GATT_SERVICE_DEFINE(gss_svc,
-					   BT_GATT_PRIMARY_SERVICE(BT_UUID_GSS),
-					   /* GPS Coordinate Characteristic */
-					   BT_GATT_CHARACTERISTIC(BT_UUID_GSS_GPS,
-											  BT_GATT_CHRC_READ,
+						BT_GATT_PRIMARY_SERVICE(BT_UUID_GSS),
+						/* GPS Coordinate Characteristic */
+						BT_GATT_CHARACTERISTIC(BT_UUID_GSS_GPS,
+											  BT_GATT_CHRC_READ | BT_GATT_CHRC_INDICATE,
 											  BT_GATT_PERM_READ,
 											  read_gps_data,
 											  NULL,
 											  &gps_data),
-					   /* MOB Event Characteristic */
-					   BT_GATT_CHARACTERISTIC(BT_UUID_GSS_MOB,
-											  BT_GATT_CHRC_READ,
+						BT_GATT_CCC(gss_ccc_gps_changed,
+								BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+						/* MOB Event Characteristic */
+						BT_GATT_CHARACTERISTIC(BT_UUID_GSS_MOB,
+											  BT_GATT_CHRC_READ | BT_GATT_CHRC_INDICATE,
 											  BT_GATT_PERM_READ,
 											  read_mob_event_status,
 											  NULL,
 											  &mob_status),
+						BT_GATT_CCC(gss_ccc_mob_changed,
+								BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
 
 );

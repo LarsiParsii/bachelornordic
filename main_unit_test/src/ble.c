@@ -51,6 +51,7 @@ int ble_init(struct bt_conn_cb *connection_cb)
 	}
 
 	LOG_INF("Advertising successfully started\n");
+	return 0;
 }
 
 /* BLUETOOTH CONNECTION CALLBACKS */

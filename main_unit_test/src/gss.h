@@ -60,13 +60,12 @@ typedef bool (*mob_cb_t)(void);
 
 
 /** @brief Callback struct used by the GSS Service. */
-struct gss_cb_s
-{
+typedef struct {
 	/** GPS reading callback. */
 	gps_cb_t gps_cb;
 	/** Humidity change callback. */
 	mob_cb_t mob_cb;
-};
+} gss_cb_s;
 
 
 /* FUNCTION PROTOTYPES */
@@ -80,7 +79,11 @@ struct gss_cb_s
  * @retval 0 If the operation was successful.
  *           Otherwise, a (negative) error code is returned.
  */
-int gss_init(struct gss_cb_s *callbacks);
+int gss_init(gss_cb_s *callbacks);
+
+int gss_send_gps_indicate(gps_data_s gps_data);
+
+int gss_send_mob_indicate(bool mob_status);	
 
 #ifdef __cplusplus
 }
