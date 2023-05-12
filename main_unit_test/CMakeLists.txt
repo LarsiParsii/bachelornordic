@@ -10,5 +10,5 @@ target_sources(app PRIVATE
     src/gss.c
 	src/ble.c
 	src/gps.c
-	src/hum.c
+	src/mob.c
 )

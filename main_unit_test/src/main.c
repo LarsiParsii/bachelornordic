@@ -11,7 +11,7 @@
 
 #include "gss.h"
 #include "gps.h"
-#include "hum.h"
+#include "mob.h"
 #include "ble.h"
 
 LOG_MODULE_REGISTER(main_c, LOG_LEVEL_DBG);
@@ -30,8 +30,8 @@ struct bt_conn_cb connection_callbacks = {
 };
 
 static struct gss_cb_s app_callbacks = {
-	.gps_cb		= NULL,
-	.mob_cb 	= NULL,
+	.gps_cb		= getGPSData,
+	.mob_cb 	= getMOBStatus,
 };
 
 static void button_changed(uint32_t button_state, uint32_t has_changed)

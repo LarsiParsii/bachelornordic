@@ -4,13 +4,14 @@
 // Includes
 
 // Structs
-typedef struct dummy_gps_data {
+typedef struct {
 	double longitude;
 	double latitude;
 	float altitude;
 	float accuracy;
-} dummy_gps_data_t;
+} gps_data_s;
 
-// Prototypes
+// Function prototypes
+gps_data_s getGPSData(void);
 
 #endif /* gps_H_ */

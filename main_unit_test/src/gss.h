@@ -22,6 +22,8 @@ extern "C"
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 
+#include "gps.h"
+
 #define RUN_STATUS_LED          DK_LED1
 #define CON_STATUS_LED          DK_LED2
 /* LED to control */
@@ -51,16 +53,11 @@ extern "C"
 /* CALLBACK STRUCTURE */
 
 /** @brief Callback type for reading the GPS data */
-typedef int (*gps_cb_t)(void);
+typedef gps_data_s (*gps_cb_t)(void);
 
 /** @brief Callback type for humidity sensor reading */
-typedef int (*mob_cb_t)(void);
+typedef bool (*mob_cb_t)(void);
 
-/** @brief Callback type for when an LED state change is received. */
-typedef void (*led_cb_t)(const bool led_state);
-
-/** @brief Callback type for when the button state is pulled. */
-typedef bool (*button_cb_t)(void);
 
 /** @brief Callback struct used by the GSS Service. */
 struct gss_cb_s
@@ -84,12 +81,6 @@ struct gss_cb_s
  *           Otherwise, a (negative) error code is returned.
  */
 int gss_init(struct gss_cb_s *callbacks);
-static ssize_t write_led(struct bt_conn *conn,
-						 const struct bt_gatt_attr *attr,
-						 const void *buf,
-						 uint16_t len, uint16_t offset, uint8_t flags);
-
-
 
 #ifdef __cplusplus
 }
