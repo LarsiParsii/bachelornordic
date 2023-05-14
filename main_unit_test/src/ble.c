@@ -60,18 +60,18 @@ void on_connected(struct bt_conn *conn, uint8_t err)
 {
 	if (err)
 	{
-		printk("Connection failed (err %u)\n", err);
+		LOG_INF("Connection failed (err %u)\n", err);
 		return;
 	}
 
-	printk("Connected\n");
+	LOG_INF("Connected\n");
 
 	dk_set_led_on(CON_STATUS_LED);
 }
 
 void on_disconnected(struct bt_conn *conn, uint8_t reason)
 {
-	printk("Disconnected (reason %u)\n", reason);
+	LOG_INF("Disconnected (reason %u)\n", reason);
 
 	dk_set_led_off(CON_STATUS_LED);
 }

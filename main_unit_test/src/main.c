@@ -32,13 +32,21 @@ static gss_cb_s app_callbacks = {
 };
 
 
-void send_data_thread(void)
+void send_gps_data_thread(void)
 {
 	while (1)
 	{
 		/* Send indication, the function sends notifications only if a client is subscribed */
 		gss_send_gps_indicate(getGPSData());
 		k_sleep(K_MSEC(INDICATE_INTERVAL));
+	}
+}
+
+void send_mob_data_thread(void)
+{
+	while (1)
+	{
+		/* Send indication, the function sends notifications only if a client is subscribed */
 		gss_send_mob_indicate(getMOBStatus());
 		k_sleep(K_MSEC(INDICATE_INTERVAL));
 	}
@@ -54,7 +62,7 @@ void main(void)
 	int blink_status = 0;
 	int err;
 
-	LOG_INF("Starting MOB unit application \n");
+	LOG_INF("Starting main unit application \n");
 
 	err = dk_leds_init();
 	if (err)
@@ -79,5 +87,7 @@ void main(void)
 	}
 }
 
-K_THREAD_DEFINE(send_data_thread_id, STACKSIZE, send_data_thread, NULL, NULL,
+K_THREAD_DEFINE(send_gps_data_thread_id, STACKSIZE, send_gps_data_thread, NULL, NULL,
+				NULL, PRIORITY, 0, 0);
+K_THREAD_DEFINE(send_mob_data_thread_id, STACKSIZE, send_mob_data_thread, NULL, NULL,
 				NULL, PRIORITY, 0, 0);

@@ -101,12 +101,10 @@ static ssize_t read_gps_data(struct bt_conn *conn,
 	const gps_data_s *value;
 	if (attr->user_data != NULL)
 	{
-		// LOG_DBG("User data is not NULL");
 		value = attr->user_data;
 	}
 	else
 	{
-		// LOG_DBG("User data is NULL");
 		return 0;
 	}
 	LOG_DBG("Attribute read, handle: %u, conn: %p", attr->handle,
@@ -128,14 +126,30 @@ static void gss_ccc_gps_changed(const struct bt_gatt_attr *attr,
 								uint16_t value)
 {
 	indicate_enabled_gps = (value == BT_GATT_CCC_INDICATE);
+	if (indicate_enabled_gps)
+	{
+		LOG_INF("GPS indication enabled");
+	}
+	else
+	{
+		LOG_INF("GPS indication disabled");
+	}
 }
 static void gss_ccc_mob_changed(const struct bt_gatt_attr *attr,
 								uint16_t value)
 {
 	indicate_enabled_mob = (value == BT_GATT_CCC_INDICATE);
+	if (indicate_enabled_mob)
+	{
+		LOG_INF("MOB event indication enabled");
+	}
+	else
+	{
+		LOG_INF("MOB event indication disabled");
+	}
 }
 
-//This function is called when a remote device has acknowledged the indication at its host layer
+//This function is called 
 static void indicate_started_gps_cb(struct bt_conn *conn,
 			struct bt_gatt_indicate_params *params, uint8_t err)
 {
@@ -146,6 +160,7 @@ static void indicate_started_mob_cb(struct bt_conn *conn,
 {
 	LOG_DBG("MOB indication started %s\n", err != 0U ? "fail" : "success");
 }
+// 
 static void indicate_ended_gps_cb()
 {
 	LOG_DBG("GPS indication finished.\n");
