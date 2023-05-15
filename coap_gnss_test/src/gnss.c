@@ -12,7 +12,7 @@ K_SEM_DEFINE(gnss_fix_sem, 0, 1);
 extern enum tracker_status device_status;
 
 /* FUNCTION DEFINITIONS */
-static void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data)
+void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data)
 {
 	printk("Latitude:       %.06f\n", pvt_data->latitude);
 	printk("Longitude:      %.06f\n", pvt_data->longitude);

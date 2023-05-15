@@ -5,6 +5,7 @@
 	"*.h": "c",
 	"*.cpp": "cpp",
 	"typeinfo": "c",
-	"cstdio": "c"
+	"cstdio": "c",
+	"*.tcc": "c"
 }
 }

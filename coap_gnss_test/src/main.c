@@ -18,6 +18,8 @@ struct nrf_modem_gnss_pvt_data_frame current_pvt;
 struct nrf_modem_gnss_pvt_data_frame last_pvt;
 static int resolve_address_lock = 0;
 static int sock;
+bool faux_gnss_fix_requested = false; // Generate fake GPS data for testing purposes
+
 
 static void button_handler(uint32_t button_state, uint32_t has_changed)
 {
@@ -36,12 +38,17 @@ static void button_handler(uint32_t button_state, uint32_t has_changed)
 		}
 		toogle = !toogle;
 	}
+	if (has_changed & DK_BTN2_MSK && button_state & DK_BTN2_MSK)
+	{
+		faux_gnss_fix_requested = true;
+		k_sem_give(&gnss_fix_sem);
+	}
 }
 
 void main(void)
 {
 	int err, received;
-	LOG_INF("The nRF91 Simple Tracker Version %d.%d.%d started\n", CONFIG_TRACKER_VERSION_MAJOR, CONFIG_TRACKER_VERSION_MINOR, CONFIG_TRACKER_VERSION_PATCH);
+	LOG_INF("Main Unit Version %d.%d.%d started\n", CONFIG_TRACKER_VERSION_MAJOR, CONFIG_TRACKER_VERSION_MINOR, CONFIG_TRACKER_VERSION_PATCH);
 
 	err = modem_key_mgmt_write(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_IDENTITY, CONFIG_COAP_DEVICE_NAME, strlen(CONFIG_COAP_DEVICE_NAME));
 	if (err)
@@ -56,24 +63,47 @@ void main(void)
 		LOG_ERR("Failed to write identity: %d\n", err);
 		return;
 	}
+
 	err = dk_leds_init();
 	if (err)
 	{
 		LOG_ERR("Failed to initlize the LEDs Library");
 	}
 	device_status = status_nolte;
+
 	modem_configure();
+
 	err = dk_buttons_init(button_handler);
 	if (err)
 	{
 		LOG_ERR("Failed to initlize button handler: %d\n", err);
 		return;
 	}
+
 	LOG_INF("Starting GNSS....");
 	gnss_init_and_start();
+
 	while (1)
 	{
 		k_sem_take(&gnss_fix_sem, K_FOREVER);
+		if (faux_gnss_fix_requested)
+		{
+			LOG_INF("Faux GNSS fix requested");
+			faux_gnss_fix_requested = false;
+			current_pvt = last_pvt;
+			current_pvt.latitude = 59.3294;
+			current_pvt.longitude = 18.0686;
+			current_pvt.altitude = 0;
+			current_pvt.datetime.day = 15;
+			current_pvt.datetime.month = 5;
+			current_pvt.datetime.year = 2023;
+			current_pvt.datetime.hour = 02;
+			current_pvt.datetime.minute = 47;
+			current_pvt.datetime.seconds = 06;
+			current_pvt.datetime.ms = 365;
+			current_pvt.accuracy = 5;
+			print_fix_data(&current_pvt);
+		}
 		err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
 		if (err != 0)
 		{
@@ -99,7 +129,7 @@ void main(void)
 		}
 
 		if (client_post_send(sock, coap_buf, sizeof(coap_buf), coap_sendbuf, sizeof(coap_sendbuf),
-				current_pvt, last_pvt) != 0)
+							 current_pvt, last_pvt) != 0)
 		{
 			LOG_ERR("Failed to send GET request, exit...\n");
 			break;
