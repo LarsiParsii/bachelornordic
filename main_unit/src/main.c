@@ -54,6 +54,10 @@ static void button_handler(uint32_t button_state, uint32_t has_changed)
 	}
 }
 
+/**
+ * @brief Update and print the sensor data every 10 seconds
+ *  
+ */
 void update_print_sensors(void)
 {
 	while (1)
