@@ -1,0 +1,97 @@
+/*
+ * Copyright (c) 2020 Jacek Ozimek <jacek.ozmk@gmail.com>
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+&pinctrl {
+	i2c2_default: i2c2_default {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 11)>,
+					<NRF_PSEL(TWIM_SCL, 0, 12)>;
+		};
+	};
+
+	i2c2_sleep: i2c2_sleep {
+		group1 {
+			psels = <NRF_PSEL(TWIM_SDA, 0, 11)>,
+					<NRF_PSEL(TWIM_SCL, 0, 12)>;
+			low-power-enable;
+		};
+	};
+
+	spi3_default: spi3_default {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 0, 3)>,
+			        <NRF_PSEL(SPIM_MOSI, 0, 4)>,
+			        <NRF_PSEL(SPIM_MISO, 0, 5)>;
+		};
+	};
+
+	spi3_sleep: spi3_sleep {
+		group1 {
+			psels = <NRF_PSEL(SPIM_SCK, 0, 3)>,
+			        <NRF_PSEL(SPIM_MOSI, 0, 4)>,
+			        <NRF_PSEL(SPIM_MISO, 0, 5)>;
+			low-power-enable;
+		};
+	};
+};
+
+&i2c2 {
+	compatible = "nordic,nrf-twim";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	
+	bme280: bme280@76 {
+		compatible = "bosch,bme280";
+		reg = <0x76 >;
+	};
+};
+
+&spi3 {
+	status = "okay";
+	cs-gpios = <&gpio0 7 0>, <&gpio0 8 0>;
+	adxl372: adxl372@0 {
+		compatible = "adi,adxl372";
+		reg = <0>;
+		spi-max-frequency = <1000000>;
+	};
+	atxl362: adxl362@1 {
+		compatible = "adi,adxl362";
+		reg = <1>;
+		spi-max-frequency = <1000000>;
+	};
+};
+
+&led0 {
+	gpios = <&gpio0 23 0>;
+};
+
+&led1 {
+	gpios = <&gpio0 22 0>;
+};
+
+&led2 {
+	gpios = <&gpio0 21 0>;
+};
+
+&led3 {
+	gpios = <&gpio0 20 0>;
+};
+
+&button0 {
+	gpios = <&gpio0 19 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+};
+
+&button1 {
+	gpios = <&gpio0 18 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+};
+
+&button2 {
+	gpios = <&gpio0 17 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+};
+
+&button3 {
+	gpios = <&gpio0 16 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
+};

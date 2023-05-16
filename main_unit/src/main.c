@@ -1,12 +1,20 @@
 #include <zephyr/kernel.h>
+#include <zephyr/device.h>
+#include <zephyr/devicetree.h>
 #include <modem/modem_key_mgmt.h>
 #include <zephyr/logging/log.h>
 #include <dk_buttons_and_leds.h>
 
+#include "custom_errno.h"
 #include "gnss.h"
 #include "lte.h"
 #include "coap.h"
+#include "sensors.h"
+
 LOG_MODULE_REGISTER(main_c, LOG_LEVEL_INF);
+
+#define SENSOR_THREAD_PRIORITY 6
+#define STACKSIZE 1024
 
 #define APP_COAP_MAX_MSG_LEN 1280
 #define APP_COAP_SEND_MAX_MSG_LEN 64
@@ -18,11 +26,12 @@ struct nrf_modem_gnss_pvt_data_frame current_pvt;
 struct nrf_modem_gnss_pvt_data_frame last_pvt;
 static int resolve_address_lock = 0;
 static int sock;
-bool faux_gnss_fix_requested = false; // Generate fake GPS data for testing purposes
-
+bool faux_gnss_fix_requested = false;	// Generate fake GPS data for testing purposes
+sensors_s sensors;		// Holds all the sensors and their data
 
 static void button_handler(uint32_t button_state, uint32_t has_changed)
 {
+	LOG_WRN("Button pressed");
 	static bool toogle = 1;
 	if (has_changed & DK_BTN1_MSK && button_state & DK_BTN1_MSK)
 	{
@@ -45,11 +54,43 @@ static void button_handler(uint32_t button_state, uint32_t has_changed)
 	}
 }
 
+void update_print_sensors(void)
+{
+	while (1)
+	{
+		read_sensors(&sensors);
+		LOG_INF("BME280: Temperature: %d.%06d C, Pressure: %d.%06d hPa, Humidity: %d.%06d %%RH\n",
+				sensors.bme280.temperature.val1, sensors.bme280.temperature.val2, sensors.bme280.pressure.val1, sensors.bme280.pressure.val2,
+				sensors.bme280.humidity.val1, sensors.bme280.humidity.val2);
+		k_msleep(10000);
+	}
+}
+
 void main(void)
 {
-	int err, received;
 	LOG_INF("Main Unit Version %d.%d.%d started\n", CONFIG_TRACKER_VERSION_MAJOR, CONFIG_TRACKER_VERSION_MINOR, CONFIG_TRACKER_VERSION_PATCH);
 
+	int err, received;
+	
+	err = sensors_init(&sensors);
+	if (err == 0)
+	{
+		LOG_INF("Sensors initialized successfully.\n");
+	}
+	else if (err == -ESOMEDEVINIT)
+	{
+		LOG_WRN("Some sensors failed to initialize.\n");
+	}
+	else if (err == -ENODEVINIT)
+	{
+		LOG_ERR("No sensors were initialized.\n");
+	}
+	else
+	{
+		LOG_ERR("Failed to initialize sensors.\n");
+		return;
+	}
+	
 	err = modem_key_mgmt_write(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_IDENTITY, CONFIG_COAP_DEVICE_NAME, strlen(CONFIG_COAP_DEVICE_NAME));
 	if (err)
 	{
@@ -166,3 +207,6 @@ void main(void)
 	lte_lc_power_off();
 	LOG_ERR("Error occoured. Shutting down modem");
 }
+
+K_THREAD_DEFINE(sensor_thread_id, STACKSIZE, update_print_sensors, NULL, NULL, NULL,
+				SENSOR_THREAD_PRIORITY, 0, 0);
