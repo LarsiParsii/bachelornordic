@@ -1,7 +1,9 @@
 #include "gnss.h"
 #include <stdio.h>
-#include <nrf_modem_gnss.h>
 #include <zephyr/logging/log.h>
+#include <nrf_modem_gnss.h>
+#include <zephyr/random/rand32.h>
+
 
 LOG_MODULE_REGISTER(GNSS, LOG_LEVEL_INF);
 
@@ -111,4 +113,30 @@ int gnss_init_and_start(void)
 		return -1;
 	}
 	return 0;
+}
+
+double generate_random_double(double min, double max)
+{
+	uint32_t randNum = sys_rand32_get();
+	double fraction = ((double)randNum) / UINT32_MAX; // Normalize to [0, 1]
+	return min + fraction * (max - min);			  // Scale to [min, max]
+}
+
+void createFauxFix(void)
+{
+	current_pvt = last_pvt;
+
+	LOG_INF("Faux GNSS fix requested");
+	current_pvt = last_pvt;
+	current_pvt.latitude = generate_random_double(-90, 90);
+	current_pvt.longitude = generate_random_double(-180, 180);
+	current_pvt.altitude = generate_random_double(0, 1000);
+	current_pvt.accuracy = generate_random_double(0, 100);
+	current_pvt.datetime.day = sys_rand32_get() % 31;
+	current_pvt.datetime.month = sys_rand32_get() % 12;
+	current_pvt.datetime.year = 2023;
+	current_pvt.datetime.hour = sys_rand32_get() % 24;
+	current_pvt.datetime.minute = sys_rand32_get() % 60;
+	current_pvt.datetime.seconds = sys_rand32_get() % 60;
+	current_pvt.datetime.ms = sys_rand32_get() % 1000;
 }

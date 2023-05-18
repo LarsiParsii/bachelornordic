@@ -130,23 +130,11 @@ void main(void)
 
 	while (1)
 	{
+		printk("Waiting for GNSS fix");
 		k_sem_take(&gnss_fix_sem, K_FOREVER);
 		if (faux_gnss_fix_requested)
 		{
-			LOG_INF("Faux GNSS fix requested");
-			faux_gnss_fix_requested = false;
-			current_pvt = last_pvt;
-			current_pvt.latitude = 59.3294;
-			current_pvt.longitude = 18.0686;
-			current_pvt.altitude = 0;
-			current_pvt.datetime.day = 15;
-			current_pvt.datetime.month = 5;
-			current_pvt.datetime.year = 2023;
-			current_pvt.datetime.hour = 02;
-			current_pvt.datetime.minute = 47;
-			current_pvt.datetime.seconds = 06;
-			current_pvt.datetime.ms = 365;
-			current_pvt.accuracy = 5;
+			createFauxFix();
 			print_fix_data(&current_pvt);
 		}
 		err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);

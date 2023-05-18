@@ -95,34 +95,18 @@
 		
 		blue_led: blue_led {
 			gpios = <&gpio0 0 0>;
-			label = "Blue on-board LED 2";
-		};
-		
-		// The below nodes are taken up by SPI/I2C.
-		&led1 {
-			/delete-property/ gpios;
-		};
-		&led2 {
-			/delete-property/ gpios;
-		};
-		&led1 {
-			/delete-property/ gpios;
+			label = "Blue external LED 2";
 		};
 	};
 
 	buttons {
 		compatible = "gpio-keys";
 		
-		/delete-node/ button_0;
-		/delete-node/ button_1;
-		/delete-node/ button_2;
-		/delete-node/ button_3;
-		
-		nrf91_btn_1: nrf91_btn_1 {
+		nrf91_btn_1 {
 			gpios = <&gpio0 27 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		};
 
-		nrf91_btn_2: nrf91_btn_2 {
+		nrf91_btn_2 {
 			gpios = <&gpio0 26 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>;
 		};
 	};

@@ -25,5 +25,6 @@ enum tracker_status
 /* FUNCTION PROTOTYPES */
 void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data);
 int gnss_init_and_start(void);
+void createFauxFix(void);
 
 #endif // GNSS_H

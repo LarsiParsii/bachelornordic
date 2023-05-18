@@ -6,6 +6,8 @@
 	"*.cpp": "cpp",
 	"typeinfo": "c",
 	"cstdio": "c",
-	"*.tcc": "c"
+	"*.tcc": "c",
+	"random": "c",
+	"limits": "c"
 }
 }
