@@ -26,8 +26,21 @@ struct nrf_modem_gnss_pvt_data_frame current_pvt;
 struct nrf_modem_gnss_pvt_data_frame last_pvt;
 static int resolve_address_lock = 0;
 static int sock;
-bool faux_gnss_fix_requested = false;	// Generate fake GPS data for testing purposes
-sensors_s sensors;		// Holds all the sensors and their data
+bool shutdown_flag = false;				  // Flag to signal a fault that should shut down the system
+bool faux_gnss_fix_requested = false; // Generate fake GPS data for testing purposes
+sensors_s sensors;					  // Holds all the sensors and their data
+
+// Semaphores included from other files:
+// K_SEM_DEFINE(lte_connected, 0, 1) from lte.c
+// K_SEM_DEFINE(gnss_fix_sem, 0, 1) from gnss.c
+
+K_THREAD_STACK_DEFINE(sensor_thread_stack, STACKSIZE);
+K_THREAD_STACK_DEFINE(gps_thread_stack, STACKSIZE);
+K_THREAD_STACK_DEFINE(upload_thread_stack, STACKSIZE);
+
+struct k_thread sensor_thread_data;
+struct k_thread gps_thread_data;
+struct k_thread upload_thread_data;
 
 static void button_handler(uint32_t button_state, uint32_t has_changed)
 {
@@ -50,51 +63,78 @@ static void button_handler(uint32_t button_state, uint32_t has_changed)
 	if (has_changed & DK_BTN2_MSK && button_state & DK_BTN2_MSK)
 	{
 		faux_gnss_fix_requested = true;
-		k_sem_give(&gnss_fix_sem);
+		k_sem_give(&sem_send_data);
 	}
 }
 
 /**
  * @brief Update and print the sensor data every 10 seconds
- *  
+ *
  */
-void update_print_sensors(void)
+void sensor_thread(void *arg1, void *arg2, void *arg3)
 {
+	int err;
+	// Initialize the sensors
+	err = sensors_init(&sensors);
+	/*
+	if (err != 0)
+	{
+
+		return;
+	}
+	*/
+
+	// Sensor data read and print loop
 	while (1)
 	{
+		if (shutdown_flag)
+		{
+			// Do any necessary cleanup here before exiting
+			break;
+		}
 		read_sensors(&sensors);
 		LOG_INF("BME280: Temperature: %d.%06d C, Pressure: %d.%06d hPa, Humidity: %d.%06d %%RH\n",
 				sensors.bme280.temperature.val1, sensors.bme280.temperature.val2, sensors.bme280.pressure.val1, sensors.bme280.pressure.val2,
 				sensors.bme280.humidity.val1, sensors.bme280.humidity.val2);
-		k_msleep(10000);
+
+		if (sensors.bme280.humidity.val1 > 50)
+		{
+			LOG_WRN("MOB ALERT!");
+			k_sem_give(&sem_send_data);
+		}
+
+		k_sleep(K_SECONDS(3));
 	}
 }
 
-void main(void)
+void gps_thread(void *arg1, void *arg2, void *arg3)
 {
-	LOG_INF("Main Unit Version %d.%d.%d started\n", CONFIG_TRACKER_VERSION_MAJOR, CONFIG_TRACKER_VERSION_MINOR, CONFIG_TRACKER_VERSION_PATCH);
+	LOG_INF("Starting GNSS....");
+	gnss_init_and_start();
+	while (1)
+	{
+		if (shutdown_flag)
+		{
+			// Do any necessary cleanup here before exiting
+			break;
+		}
+		// GNSS is event driven and will give a semaphore when a fix is found.
+		// This happens in the gnss_event_handler() function in gnss.c.
+		if (faux_gnss_fix_requested)
+		{
+			createFauxFix();
+			k_sem_give(&sem_send_data);		 // Signals that there's updated data to send
+			faux_gnss_fix_requested = false; // Reset the flag
+		}
+		k_sleep(K_SECONDS(10));
+	}
+}
 
+void upload_thread(void *arg1, void *arg2, void *arg3)
+{
+	LOG_INF("Initializing LTE....");
 	int err, received;
-	
-	err = sensors_init(&sensors);
-	if (err == 0)
-	{
-		LOG_INF("Sensors initialized successfully.\n");
-	}
-	else if (err == -ESOMEDEVINIT)
-	{
-		LOG_WRN("Some sensors failed to initialize.\n");
-	}
-	else if (err == -ENODEVINIT)
-	{
-		LOG_ERR("No sensors were initialized.\n");
-	}
-	else
-	{
-		LOG_ERR("Failed to initialize sensors.\n");
-		return;
-	}
-	
+
 	err = modem_key_mgmt_write(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_IDENTITY, CONFIG_COAP_DEVICE_NAME, strlen(CONFIG_COAP_DEVICE_NAME));
 	if (err)
 	{
@@ -108,42 +148,26 @@ void main(void)
 		LOG_ERR("Failed to write identity: %d\n", err);
 		return;
 	}
-
-	err = dk_leds_init();
-	if (err)
-	{
-		LOG_ERR("Failed to initlize the LEDs Library");
-	}
-	device_status = status_nolte;
-
 	modem_configure();
-
-	err = dk_buttons_init(button_handler);
-	if (err)
-	{
-		LOG_ERR("Failed to initlize button handler: %d\n", err);
-		return;
-	}
-
-	LOG_INF("Starting GNSS....");
-	gnss_init_and_start();
 
 	while (1)
 	{
-		printk("Waiting for GNSS fix");
-		k_sem_take(&gnss_fix_sem, K_FOREVER);
-		if (faux_gnss_fix_requested)
+		if (shutdown_flag)
 		{
-			createFauxFix();
-			print_fix_data(&current_pvt);
+			lte_lc_power_off();
+			LOG_ERR("Shutting down upload thread...");
+			break;
 		}
+		k_sem_take(&sem_send_data, K_FOREVER); // Wait for data to send
 		err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
 		if (err != 0)
 		{
 			LOG_ERR("Failed to activate LTE");
 			break;
 		}
-		k_sem_take(&lte_connected, K_FOREVER);
+
+		k_sem_take(&lte_connected, K_FOREVER); // Wait for the LTE connection to be established
+		// Send the data to the server
 		if (resolve_address_lock == 0)
 		{
 			LOG_INF("Resolving the server address\n\r");
@@ -195,10 +219,37 @@ void main(void)
 			break;
 		}
 	}
-	device_status = status_nolte;
-	lte_lc_power_off();
-	LOG_ERR("Error occoured. Shutting down modem");
 }
 
-K_THREAD_DEFINE(sensor_thread_id, STACKSIZE, update_print_sensors, NULL, NULL, NULL,
-				SENSOR_THREAD_PRIORITY, 0, 0);
+void main(void)
+{
+	LOG_INF("Main Unit Version %d.%d.%d started\n", CONFIG_TRACKER_VERSION_MAJOR, CONFIG_TRACKER_VERSION_MINOR, CONFIG_TRACKER_VERSION_PATCH);
+
+	int err;
+
+	err = dk_leds_init();
+	if (err)
+	{
+		LOG_ERR("Failed to initialize the LEDs Library");
+	}
+	device_status = status_nolte;
+
+	err = dk_buttons_init(button_handler);
+	if (err)
+	{
+		LOG_ERR("Failed to initialize button handler: %d\n", err);
+		return;
+	}
+
+	k_thread_create(&sensor_thread_data, sensor_thread_stack,
+					STACKSIZE, sensor_thread, NULL, NULL, NULL,
+					SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
+
+	k_thread_create(&gps_thread_data, gps_thread_stack,
+					STACKSIZE, gps_thread, NULL, NULL, NULL,
+					SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
+
+	k_thread_create(&upload_thread_data, upload_thread_stack,
+					STACKSIZE, upload_thread, NULL, NULL, NULL,
+					SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
+}

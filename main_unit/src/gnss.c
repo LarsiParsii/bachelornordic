@@ -4,11 +4,10 @@
 #include <nrf_modem_gnss.h>
 #include <zephyr/random/rand32.h>
 
-
 LOG_MODULE_REGISTER(GNSS, LOG_LEVEL_INF);
 
 /* SEMAPHORES */
-K_SEM_DEFINE(gnss_fix_sem, 0, 1);
+K_SEM_DEFINE(sem_send_data, 0, 1);
 
 /* VARIABLES */
 extern enum tracker_status device_status;
@@ -52,7 +51,7 @@ static void gnss_event_handler(int event)
 		{
 			current_pvt = last_pvt;
 			print_fix_data(&current_pvt);
-			k_sem_give(&gnss_fix_sem);
+			k_sem_give(&sem_send_data);
 		}
 		break;
 	case NRF_MODEM_GNSS_EVT_SLEEP_AFTER_TIMEOUT:
@@ -124,10 +123,9 @@ double generate_random_double(double min, double max)
 
 void createFauxFix(void)
 {
-	current_pvt = last_pvt;
-
 	LOG_INF("Faux GNSS fix requested");
 	current_pvt = last_pvt;
+	
 	current_pvt.latitude = generate_random_double(-90, 90);
 	current_pvt.longitude = generate_random_double(-180, 180);
 	current_pvt.altitude = generate_random_double(0, 1000);
@@ -139,4 +137,6 @@ void createFauxFix(void)
 	current_pvt.datetime.minute = sys_rand32_get() % 60;
 	current_pvt.datetime.seconds = sys_rand32_get() % 60;
 	current_pvt.datetime.ms = sys_rand32_get() % 1000;
+	
+	print_fix_data(&current_pvt);
 }

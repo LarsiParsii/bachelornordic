@@ -10,7 +10,7 @@
 /* DEFINES */
 
 /* SEMAPHORES */
-extern struct k_sem gnss_fix_sem;
+extern struct k_sem sem_send_data;
 
 /* VARIABLES */
 extern struct nrf_modem_gnss_pvt_data_frame current_pvt;

@@ -29,6 +29,7 @@ int sensors_init(sensors_s *sensors) {
     uint8_t init_count = 0;
     
 	if (sensors == NULL) {
+        LOG_ERR("Invalid sensors structure pointer.\n");
 		return -EINVAL;
 	}
 	
@@ -66,13 +67,17 @@ int sensors_init(sensors_s *sensors) {
 	}
 
     if (init_count == 0) {
+        LOG_ERR("No sensors were initialized.\n");
         return -ENODEVINIT;
     } else if (init_count < 3) {
+        LOG_WRN("Some sensors failed to initialize.\n");
         return -ESOMEDEVINIT;
     }
 
+    LOG_INF("All sensors initialized successfully.\n");
     return 0;
 }
+
 
 /**
  * @brief Read the BME280 sensor data.
