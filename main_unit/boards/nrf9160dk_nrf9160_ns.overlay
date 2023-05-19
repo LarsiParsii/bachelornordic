@@ -88,6 +88,21 @@
 	pinctrl-names = "default", "sleep";
 };
 
+&pwm0 {
+	status = "disabled";
+};
+
+// The below nodes are taken up by SPI/I2C.
+&led1 {
+	/delete-node/ &led1;
+};
+&led2 {
+	/delete-node/ &led2;
+};
+&led3 {
+	/delete-node/ &led3;
+};
+
 / {
 	leds {
 		compatible = "gpio-leds";
