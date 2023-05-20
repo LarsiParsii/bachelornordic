@@ -1,4 +1,5 @@
 #include "gnss.h"
+#include "led_button.h"
 #include <stdio.h>
 #include <zephyr/logging/log.h>
 #include <nrf_modem_gnss.h>
@@ -7,10 +8,9 @@
 LOG_MODULE_REGISTER(GNSS, LOG_LEVEL_DBG);
 
 /* SEMAPHORES */
-K_SEM_DEFINE(sem_send_data, 0, 1);
+K_SEM_DEFINE(sem_send_new_data, 0, 1);
 
 /* VARIABLES */
-extern enum tracker_status device_status;
 
 /* FUNCTION DEFINITIONS */
 void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data)
@@ -32,7 +32,6 @@ static void gnss_event_handler(int event)
 	{
 	case NRF_MODEM_GNSS_EVT_PVT:
 		LOG_INF("Searching for GNSS Satellites....\n\r");
-		device_status = status_searching;
 		break;
 	case NRF_MODEM_GNSS_EVT_FIX:
 		LOG_INF("GNSS fix event\n\r");
@@ -45,13 +44,13 @@ static void gnss_event_handler(int event)
 		break;
 	case NRF_MODEM_GNSS_EVT_SLEEP_AFTER_FIX:
 		LOG_INF("GNSS enters sleep because fix was achieved in periodic mode\n\r");
-		device_status = status_fixed;
 		retval = nrf_modem_gnss_read(&last_pvt, sizeof(last_pvt), NRF_MODEM_GNSS_DATA_PVT);
 		if (retval == 0)
 		{
+			setOnboardLed(true);
 			current_pvt = last_pvt;
 			print_fix_data(&current_pvt);
-			k_sem_give(&sem_send_data);
+			k_sem_give(&sem_send_new_data);
 		}
 		break;
 	case NRF_MODEM_GNSS_EVT_SLEEP_AFTER_TIMEOUT:

@@ -3,7 +3,6 @@
 #include <zephyr/devicetree.h>
 #include <modem/modem_key_mgmt.h>
 #include <zephyr/logging/log.h>
-#include <dk_buttons_and_leds.h>
 #include <zephyr/sys/printk.h>
 
 #include "custom_errno.h"
@@ -23,7 +22,6 @@ LOG_MODULE_REGISTER(main_c_, LOG_LEVEL_DBG);
 #define APP_COAP_MAX_MSG_LEN 1280
 #define APP_COAP_SEND_MAX_MSG_LEN 64
 
-enum tracker_status device_status;
 static uint8_t coap_buf[APP_COAP_MAX_MSG_LEN];
 static uint8_t coap_sendbuf[APP_COAP_SEND_MAX_MSG_LEN];
 struct nrf_modem_gnss_pvt_data_frame current_pvt;
@@ -32,7 +30,7 @@ static int resolve_address_lock = 0;
 static int sock;
 bool shutdown_flag = false;			  			// Flag to signal a fault that should shut down the system
 volatile bool faux_gnss_fix_requested = false;	// Generate fake GPS data for testing purposes
-volatile bool mob_event = false;						  	// Flag to signal a Man Overboard (MOB) event
+volatile bool mob_event = false;				// Flag to signal a Man Overboard (MOB) event
 sensors_s sensors;					  			// Holds all the sensors and their data
 
 // Semaphores included from other files:
@@ -81,7 +79,8 @@ void sensor_thread(void *arg1, void *arg2, void *arg3)
 		{
 			LOG_WRN("MOB ALERT!");
 			mob_event = true;
-			k_sem_give(&sem_send_data);
+			setOnboardLed(true);
+			k_sem_give(&sem_send_new_data);
 		}
 
 		k_sleep(K_SECONDS(3));
@@ -104,7 +103,7 @@ void gnss_thread(void *arg1, void *arg2, void *arg3)
 		if (faux_gnss_fix_requested)
 		{
 			createFauxFix();
-			k_sem_give(&sem_send_data);		 // Signals that there's updated data to send
+			k_sem_give(&sem_send_new_data);		 // Signals that there's updated data to send
 			faux_gnss_fix_requested = false; // Reset the flag
 		}
 		k_sleep(K_SECONDS(10));
@@ -145,7 +144,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 			LOG_ERR("Shutting down upload thread...");
 			break;
 		}
-		if (k_sem_take(&sem_send_data, K_FOREVER) == 0) 	// Wait for data to send
+		if (k_sem_take(&sem_send_new_data, K_FOREVER) == 0) 	// Wait for data to send
 		{
 			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
 			if (err != 0)
@@ -173,12 +172,14 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 				return;
 			}
 
+			// Send the data to the server
 			if (client_post_send(sock, coap_buf, sizeof(coap_buf), coap_sendbuf, sizeof(coap_sendbuf), 
 			current_pvt, mob_event) != 0)
 			{
-				LOG_ERR("Failed to send GET request, exit...\n");
+				LOG_ERR("Failed to send POST request, exit...\n");
 				break;
 			}
+			setOnboardLed(false);
 			received = recv(sock, coap_buf, sizeof(coap_buf), 0);
 
 			if (received < 0)
@@ -192,6 +193,8 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 				LOG_ERR("Disconnected\n");
 				break;
 			}
+			
+			// Read the response from the server (echoes the data back)
 			err = client_handle_get_response(coap_buf, received);
 			if (err < 0)
 			{
@@ -209,15 +212,14 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 		}
 		else
 		{
-			k_sleep(K_SECONDS(5));
+			k_sleep(K_SECONDS(1));
 		}
 	}
 }
 
 void main(void)
 {
-	LOG_INF("Main Unit Version %d.%d.%d started\n", CONFIG_TRACKER_VERSION_MAJOR, CONFIG_TRACKER_VERSION_MINOR, CONFIG_TRACKER_VERSION_PATCH);
-	device_status = status_nolte;
+	LOG_INF("Main Unit Version %s started\n", CONFIG_DEVICE_VERSION);
 
 	k_thread_create(&sensor_thread_data, sensor_thread_stack,
 					STACKSIZE, sensor_thread, NULL, NULL, NULL,
@@ -230,4 +232,5 @@ void main(void)
 	k_thread_create(&gps_thread_data, gps_thread_stack,
 					STACKSIZE, gnss_thread, NULL, NULL, NULL,
 					GPS_THREAD_PRIORITY, 0, K_NO_WAIT);
+	setOnboardLed(false);
 }

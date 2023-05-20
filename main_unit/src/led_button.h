@@ -7,7 +7,7 @@
 int led_button_init(void);
 bool readButton0(void);
 bool readButton1(void);
-void setLed0(bool state);
+void setOnboardLed(bool state);
 void setBlueLed(bool state);
 
 extern volatile bool faux_gnss_fix_requested;

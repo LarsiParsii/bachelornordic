@@ -24,7 +24,7 @@ static const struct gpio_dt_spec button2 = GPIO_DT_SPEC_GET(BUTTON2_NODE, gpios)
 void button1_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {	
     LOG_DBG("Button 1 pressed\n");
-    gpio_pin_toggle_dt(&onboard_led);
+	setOnboardLed(true);
 	faux_gnss_fix_requested = true;
 }
 
@@ -32,6 +32,7 @@ void button1_pressed(const struct device *dev, struct gpio_callback *cb, uint32_
 void button2_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {	
     LOG_DBG("Button 2 pressed\n");
+    gpio_pin_toggle_dt(&blue_led);
     mob_event = false;
 }
 
@@ -126,26 +127,12 @@ bool readButton1(void)
 	return readPin(&button2);
 }
 
-static void setLed(const struct gpio_dt_spec *led_spec, bool state)
+void setOnboardLed(bool state)
 {
-	int ret;
-
-	ret = gpio_pin_configure_dt(led_spec, GPIO_OUTPUT);
-	if (ret != 0)
-	{
-		LOG_ERR("Error %d: failed to configure LED\n", ret);
-		return;
-	}
-
-	gpio_pin_set_dt(led_spec, (int)state);
-}
-
-void setLed0(bool state)
-{
-	setLed(&onboard_led, state);
+	gpio_pin_set_dt(&onboard_led, (int)state);
 }
 
 void setBlueLed(bool state)
 {
-	setLed(&blue_led, state);
+	gpio_pin_set_dt(&blue_led, (int)state);
 }
