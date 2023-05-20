@@ -13,7 +13,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/logging/log.h>
 
-LOG_MODULE_REGISTER(sensors, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(sensors, LOG_LEVEL_DBG);
 
 /**
  * @brief Initialize the sensors

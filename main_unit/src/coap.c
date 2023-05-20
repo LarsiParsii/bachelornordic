@@ -7,7 +7,7 @@
 #include <zephyr/random/rand32.h>
 #include <zephyr/net/tls_credentials.h>
 
-LOG_MODULE_REGISTER(CoAP, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(CoAP, LOG_LEVEL_DBG);
 
 /* VARIABLES */
 static uint16_t next_token;
@@ -162,8 +162,7 @@ int client_handle_get_response(uint8_t *buf, int received)
 }
 
 int client_post_send(int sock, uint8_t *buf, size_t buf_size, uint8_t *sendbuf, size_t sendbuf_size,
-							struct nrf_modem_gnss_pvt_data_frame current_pvt,
-							struct nrf_modem_gnss_pvt_data_frame last_pvt)
+							struct nrf_modem_gnss_pvt_data_frame current_pvt, bool mob_value)
 {
 	int err, ret;
 	struct coap_packet request;
@@ -213,9 +212,9 @@ int client_post_send(int sock, uint8_t *buf, size_t buf_size, uint8_t *sendbuf, 
 		return err;
 	}
 
-	ret = snprintf(sendbuf, sendbuf_size, "%.06f,%.06f\n%.01f m\n%04u-%02u-%02u %02u:%02u:%02u",
+	ret = snprintf(sendbuf, sendbuf_size, "%.06f,%.06f\n%.01f m\n%04u-%02u-%02u %02u:%02u:%02u\n%d",
 				   current_pvt.latitude, current_pvt.longitude, current_pvt.accuracy, current_pvt.datetime.year, current_pvt.datetime.month, current_pvt.datetime.day,
-				   current_pvt.datetime.hour, current_pvt.datetime.minute, last_pvt.datetime.seconds);
+				   current_pvt.datetime.hour, current_pvt.datetime.minute, current_pvt.datetime.seconds, mob_value);
 	if (err < 0)
 	{
 		LOG_ERR("snprintf failed to format string, %d\n", err);

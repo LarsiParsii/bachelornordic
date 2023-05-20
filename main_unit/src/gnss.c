@@ -4,7 +4,7 @@
 #include <nrf_modem_gnss.h>
 #include <zephyr/random/rand32.h>
 
-LOG_MODULE_REGISTER(GNSS, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(GNSS, LOG_LEVEL_DBG);
 
 /* SEMAPHORES */
 K_SEM_DEFINE(sem_send_data, 0, 1);

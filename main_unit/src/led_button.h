@@ -10,4 +10,7 @@ bool readButton1(void);
 void setLed0(bool state);
 void setBlueLed(bool state);
 
+extern volatile bool faux_gnss_fix_requested;
+extern volatile bool mob_event;
+
 #endif  // led_button_H
