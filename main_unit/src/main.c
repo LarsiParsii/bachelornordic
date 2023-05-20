@@ -4,16 +4,20 @@
 #include <modem/modem_key_mgmt.h>
 #include <zephyr/logging/log.h>
 #include <dk_buttons_and_leds.h>
+#include <zephyr/sys/printk.h>
 
 #include "custom_errno.h"
 #include "gnss.h"
 #include "lte.h"
 #include "coap.h"
 #include "sensors.h"
+#include "led_button.h"
 
-LOG_MODULE_REGISTER(main_c, LOG_LEVEL_INF);
+LOG_MODULE_REGISTER(main_c_, LOG_LEVEL_INF);
 
-#define SENSOR_THREAD_PRIORITY 6
+#define SENSOR_THREAD_PRIORITY 9
+#define GPS_THREAD_PRIORITY 7
+#define UPLOAD_THREAD_PRIORITY 8
 #define STACKSIZE 1024
 
 #define APP_COAP_MAX_MSG_LEN 1280
@@ -42,6 +46,8 @@ struct k_thread sensor_thread_data;
 struct k_thread gps_thread_data;
 struct k_thread upload_thread_data;
 
+
+/*
 static void button_handler(uint32_t button_state, uint32_t has_changed)
 {
 	LOG_WRN("Button pressed");
@@ -66,6 +72,7 @@ static void button_handler(uint32_t button_state, uint32_t has_changed)
 		k_sem_give(&sem_send_data);
 	}
 }
+*/
 
 /**
  * @brief Update and print the sensor data every 10 seconds
@@ -218,26 +225,22 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 			LOG_ERR("Failed to decativate LTE and enable GNSS functional mode");
 			break;
 		}
+		k_sleep(K_SECONDS(5));
 	}
 }
+
 
 void main(void)
 {
 	LOG_INF("Main Unit Version %d.%d.%d started\n", CONFIG_TRACKER_VERSION_MAJOR, CONFIG_TRACKER_VERSION_MINOR, CONFIG_TRACKER_VERSION_PATCH);
-
+	printk("SSS");
 	int err;
-
-	err = dk_leds_init();
-	if (err)
-	{
-		LOG_ERR("Failed to initialize the LEDs Library");
-	}
 	device_status = status_nolte;
 
-	err = dk_buttons_init(button_handler);
+	err = led_button_init();
 	if (err)
 	{
-		LOG_ERR("Failed to initialize button handler: %d\n", err);
+		LOG_ERR("Failed to initialize LEDs and buttons: %d\n", err);
 		return;
 	}
 
@@ -245,11 +248,11 @@ void main(void)
 					STACKSIZE, sensor_thread, NULL, NULL, NULL,
 					SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
 
-	k_thread_create(&gps_thread_data, gps_thread_stack,
-					STACKSIZE, gps_thread, NULL, NULL, NULL,
-					SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
-
 	k_thread_create(&upload_thread_data, upload_thread_stack,
 					STACKSIZE, upload_thread, NULL, NULL, NULL,
-					SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
+					UPLOAD_THREAD_PRIORITY, 0, K_NO_WAIT);
+
+	k_thread_create(&gps_thread_data, gps_thread_stack,
+					STACKSIZE, gps_thread, NULL, NULL, NULL,
+					GPS_THREAD_PRIORITY, 0, K_NO_WAIT);
 }

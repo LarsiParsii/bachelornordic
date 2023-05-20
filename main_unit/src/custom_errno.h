@@ -12,5 +12,6 @@
 #define ESOMEDEVINIT 151	/**< Some sensor devices initialized */
 #define ENODEVREAD 152		/**< No sensor devices read */
 #define ESOMEDEVREAD 153	/**< Some sensor devices read */
+#define EIONOTREADY 154		/**< Some button or LED not ready */
 
 #endif  // custom_errno_H

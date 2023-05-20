@@ -9,5 +9,8 @@
 	"*.tcc": "c",
 	"random": "c",
 	"limits": "c"
+},
+"nrf-connect.debugging.bindings": {
+	"${workspaceFolder}/build": "Launch build"
 }
 }
