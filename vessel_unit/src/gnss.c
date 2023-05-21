@@ -1,5 +1,4 @@
 #include "gnss.h"
-#include "led_button.h"
 #include <stdio.h>
 #include <zephyr/logging/log.h>
 #include <nrf_modem_gnss.h>
@@ -7,10 +6,8 @@
 
 LOG_MODULE_REGISTER(GNSS, LOG_LEVEL_DBG);
 
-/* SEMAPHORES */
-K_SEM_DEFINE(sem_send_new_data, 0, 1);
-
 /* VARIABLES */
+extern enum tracker_status device_status;
 
 /* FUNCTION DEFINITIONS */
 void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data)
@@ -31,7 +28,8 @@ static void gnss_event_handler(int event)
 	switch (event)
 	{
 	case NRF_MODEM_GNSS_EVT_PVT:
-		LOG_INF("Searching for GNSS Satellites....\n\r");
+		LOG_DBG("Searching for GNSS Satellites....\n\r");
+		device_status = status_searching;
 		break;
 	case NRF_MODEM_GNSS_EVT_FIX:
 		LOG_INF("GNSS fix event\n\r");
@@ -44,17 +42,17 @@ static void gnss_event_handler(int event)
 		break;
 	case NRF_MODEM_GNSS_EVT_SLEEP_AFTER_FIX:
 		LOG_INF("GNSS enters sleep because fix was achieved in periodic mode\n\r");
-		retval = nrf_modem_gnss_read(&last_pvt, sizeof(last_pvt), NRF_MODEM_GNSS_DATA_PVT);
+		device_status = status_fixed;
+		retval = nrf_modem_gnss_read(&vessel_last_pvt, sizeof(vessel_last_pvt), NRF_MODEM_GNSS_DATA_PVT);
 		if (retval == 0)
 		{
-			setOnboardLed(true);
-			current_pvt = last_pvt;
+			current_pvt = vessel_last_pvt;
 			print_fix_data(&current_pvt);
 			k_sem_give(&sem_send_new_data);
 		}
 		break;
 	case NRF_MODEM_GNSS_EVT_SLEEP_AFTER_TIMEOUT:
-		LOG_INF("GNSS enters sleep because fix retry timeout was reached\n\r");
+		LOG_DBG("GNSS enters sleep because fix retry timeout was reached\n\r");
 		break;
 
 	default:
@@ -65,50 +63,59 @@ static void gnss_event_handler(int event)
 
 int gnss_init_and_start(void)
 {
+	int err;
 #if defined(CONFIG_GNSS_HIGH_ACCURACY_TIMING_SOURCE)
-	if (nrf_modem_gnss_timing_source_set(NRF_MODEM_GNSS_TIMING_SOURCE_TCXO))
+	err = nrf_modem_gnss_timing_source_set(NRF_MODEM_GNSS_TIMING_SOURCE_TCXO);
+	if (err < 0)
 	{
-		LOG_ERR("Failed to set TCXO timing source");
-		return -1;
+		LOG_ERR("Failed to set TCXO timing source: %d", err);
+		return err;
 	}
 #endif
 #if defined(CONFIG_GNSS_LOW_ACCURACY) || defined(CONFIG_BOARD_THINGY91_NRF9160_NS)
 	uint8_t use_case;
 	use_case = NRF_MODEM_GNSS_USE_CASE_MULTIPLE_HOT_START | NRF_MODEM_GNSS_USE_CASE_LOW_ACCURACY;
-	if (nrf_modem_gnss_use_case_set(use_case) != 0)
+	err = nrf_modem_gnss_use_case_set(use_case);
+	if (err < 0)
 	{
-		LOG_ERR("Failed to set low accuracy use case");
-		return -1;
+		LOG_ERR("Failed to set low accuracy use case: %d", err);
+		return err;
 	}
 #endif
 	/* Configure GNSS event handler . */
-	if (nrf_modem_gnss_event_handler_set(gnss_event_handler) != 0)
+	err = nrf_modem_gnss_event_handler_set(gnss_event_handler);
+	if (err < 0)
 	{
-		LOG_ERR("Failed to set GNSS event handler");
-		return -1;
+		LOG_ERR("Failed to set GNSS event handler: %d", err);
+		return err;
 	}
-
-	if (nrf_modem_gnss_fix_interval_set(CONFIG_TRACKER_PERIODIC_INTERVAL) != 0)
+	
+	err = nrf_modem_gnss_fix_interval_set(CONFIG_TRACKER_PERIODIC_INTERVAL);
+	if (err < 0)
 	{
-		LOG_ERR("Failed to set GNSS fix interval");
-		return -1;
+		LOG_ERR("Failed to set GNSS fix interval: %d", err);
+		return err;
 	}
-
-	if (nrf_modem_gnss_fix_retry_set(CONFIG_TRACKER_PERIODIC_TIMEOUT) != 0)
+	
+	err = nrf_modem_gnss_fix_retry_set(CONFIG_TRACKER_PERIODIC_TIMEOUT);
+	if (err < 0)
 	{
-		LOG_ERR("Failed to set GNSS fix retry");
-		return -1;
+		LOG_ERR("Failed to set GNSS fix retry: %d", err);
+		return err;
 	}
-
-	if (nrf_modem_gnss_start() != 0)
+	
+	err = nrf_modem_gnss_start();
+	if (err < 0)
 	{
 		LOG_ERR("Failed to start GNSS");
-		return -1;
+		return err;
 	}
-	if (nrf_modem_gnss_prio_mode_disable() != 0)		// DISABLED GNSS PRIORITY MODE
+	
+	err = nrf_modem_gnss_prio_mode_disable();		// DISABLED GNSS PRIORITY MODE
+	if (err < 0)
 	{
 		LOG_ERR("Error setting GNSS priority mode");
-		return -1;
+		return err;
 	}
 	return 0;
 }
@@ -123,6 +130,7 @@ double generate_random_double(double min, double max)
 void createFauxFix(void)
 {
 	LOG_INF("Faux GNSS fix requested");
+	current_pvt = vessel_last_pvt;
 	
 	current_pvt.latitude = generate_random_double(-90, 90);
 	current_pvt.longitude = generate_random_double(-180, 180);
@@ -137,4 +145,5 @@ void createFauxFix(void)
 	current_pvt.datetime.ms = sys_rand32_get() % 1000;
 	
 	print_fix_data(&current_pvt);
+	k_sem_give(&sem_send_new_data);
 }

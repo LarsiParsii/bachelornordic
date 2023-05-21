@@ -3,91 +3,56 @@
 #include <zephyr/devicetree.h>
 #include <modem/modem_key_mgmt.h>
 #include <zephyr/logging/log.h>
+#include <dk_buttons_and_leds.h>
 #include <zephyr/sys/printk.h>
 
 #include "custom_errno.h"
 #include "gnss.h"
 #include "lte.h"
 #include "coap.h"
-#include "sensors.h"
 #include "led_button.h"
 
 LOG_MODULE_REGISTER(main_c_, LOG_LEVEL_DBG);
 
-#define SENSOR_THREAD_PRIORITY 9
-#define GPS_THREAD_PRIORITY 7
+#define DOWNLOAD_THREAD_PRIORITY 9
 #define UPLOAD_THREAD_PRIORITY 8
+#define GPS_THREAD_PRIORITY 7
 #define STACKSIZE 2048
 
 #define APP_COAP_MAX_MSG_LEN 1280
 #define APP_COAP_SEND_MAX_MSG_LEN 64
+static uint8_t coap_buf[APP_COAP_MAX_MSG_LEN];			// Holds the CoAP message
+static uint8_t coap_databuf[APP_COAP_SEND_MAX_MSG_LEN]; // Holds the data to send in the CoAP message
 
-static uint8_t coap_buf[APP_COAP_MAX_MSG_LEN];
-static uint8_t coap_databuf[APP_COAP_SEND_MAX_MSG_LEN];
-struct nrf_modem_gnss_pvt_data_frame current_pvt;
+enum tracker_status device_status;
 struct nrf_modem_gnss_pvt_data_frame last_pvt;
+struct nrf_modem_gnss_pvt_data_frame current_pvt;
 static int resolve_address_lock = 0;
 static int sock_tx;
+static int sock_rx;
 bool shutdown_flag = false;					   // Flag to signal a fault that should shut down the system
 volatile bool faux_gnss_fix_requested = false; // Generate fake GPS data for testing purposes
-volatile bool mob_event = false;			   // Flag to signal a Man Overboard (MOB) event
-sensors_s sensors;							   // Holds all the sensors and their data
+volatile bool download_data = false;		   // Flag to signal that data should be downloaded
 
 // Semaphores included from other files:
 // K_SEM_DEFINE(lte_connected, 0, 1) from lte.c
 // K_SEM_DEFINE(gnss_fix_sem, 0, 1) from gnss.c
 
-K_THREAD_STACK_DEFINE(sensor_thread_stack, STACKSIZE);
-K_THREAD_STACK_DEFINE(gps_thread_stack, STACKSIZE);
+K_THREAD_STACK_DEFINE(download_thread_stack, STACKSIZE);
 K_THREAD_STACK_DEFINE(upload_thread_stack, STACKSIZE);
+K_THREAD_STACK_DEFINE(gps_thread_stack, STACKSIZE);
 
-struct k_thread sensor_thread_data;
-struct k_thread gnss_thread_data;
+struct k_thread download_thread_data;
 struct k_thread upload_thread_data;
+struct k_thread gnss_thread_data;
+
+k_tid_t download_thread_id;
+k_tid_t upload_thread_id;
+k_tid_t gnss_thread_id;
 
 K_SEM_DEFINE(sem_lte_busy, 1, 1);
-
-/**
- * @brief Update and print the sensor data every 10 seconds
- *
- */
-void sensor_thread(void *arg1, void *arg2, void *arg3)
-{
-	int err;
-	// Initialize the sensors
-	err = sensors_init(&sensors);
-	/*
-	if (err != 0)
-	{
-
-		return;
-	}
-	*/
-
-	// Sensor data read and print loop
-	while (1)
-	{
-		if (shutdown_flag)
-		{
-			// Do any necessary cleanup here before exiting
-			break;
-		}
-		read_sensors(&sensors);
-		LOG_DBG("BME280: Temperature: %d.%06d C, Pressure: %d.%06d hPa, Humidity: %d.%06d %%RH\n",
-				sensors.bme280.temperature.val1, sensors.bme280.temperature.val2, sensors.bme280.pressure.val1, sensors.bme280.pressure.val2,
-				sensors.bme280.humidity.val1, sensors.bme280.humidity.val2);
-
-		if (sensors.bme280.humidity.val1 > 65 && mob_event == false)
-		{
-			LOG_WRN("MOB ALERT!");
-			mob_event = true;
-			setOnboardLed(true);
-			k_sem_give(&sem_send_new_data);
-		}
-
-		k_sleep(K_SECONDS(3));
-	}
-}
+K_SEM_DEFINE(sem_send_new_data, 0, 1);
+K_SEM_DEFINE(sem_get_new_data, 0, 1);
 
 void gnss_thread(void *arg1, void *arg2, void *arg3)
 {
@@ -102,11 +67,103 @@ void gnss_thread(void *arg1, void *arg2, void *arg3)
 		// This happens in the gnss_event_handler() function in gnss.c.
 		if (faux_gnss_fix_requested)
 		{
-			createFauxFix();
-			k_sem_give(&sem_send_new_data);	 // Signals that there's updated data to send
 			faux_gnss_fix_requested = false; // Reset the flag
+			setOnboardLed(true);
+			createFauxFix();
 		}
+		if (download_data == true)
+		{
+			download_data = false;		   // Reset the flag
+			setOnboardLed(true);
+			k_sem_give(&sem_get_new_data); // Signals that there's updated data to send
+		}
+
 		k_sleep(K_SECONDS(1));
+	}
+}
+
+void download_thread(void *arg1, void *arg2, void *arg3)
+{
+	int err, received;
+
+	while (1)
+	{
+		if (shutdown_flag)
+		{
+			lte_lc_power_off();
+			LOG_ERR("Shutting down upload thread...");
+			break;
+		}
+
+		if ((k_sem_take(&sem_get_new_data, K_FOREVER) == 0) && (k_sem_take(&sem_lte_busy, K_FOREVER) == 0)) // Wait for data to send
+		{
+			LOG_INF("Starting download...\n\r");
+			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
+			if (err != 0)
+			{
+				LOG_ERR("Failed to activate LTE");
+				break;
+			}
+			LOG_INF("Waiting for LTE connection\n\r");
+			k_sem_take(&lte_connected, K_FOREVER); // Wait for the LTE connection to be established
+			LOG_INF("LTE connected\n\r");
+
+			// Send the data to the server
+			if (resolve_address_lock == 0)
+			{
+				LOG_INF("Resolving the server address\n\r");
+				if (server_resolve() != 0)
+				{
+					LOG_ERR("Failed to resolve server name\n");
+					return;
+				}
+				resolve_address_lock = 1;
+			}
+			LOG_INF("Receiving Data over LTE\r\n");
+			if (server_connect(sock_tx) != 0)
+			{
+				LOG_ERR("Failed to initialize CoAP client\n");
+				return;
+			}
+			
+			received = recv(sock_tx, coap_buf, sizeof(coap_buf), 0);
+
+			if (received < 0)
+			{
+				LOG_ERR("Error reading response\n");
+				break;
+			}
+
+			if (received == 0)
+			{
+				LOG_ERR("Disconnected\n");
+				break;
+			}
+
+			// Read it back
+			err = client_handle_get_response(coap_buf, received);
+			if (err < 0)
+			{
+				LOG_ERR("Invalid response, exit...\n");
+				break;
+			}
+
+			(void)close(sock_tx);
+			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_DEACTIVATE_LTE);
+			if (err != 0)
+			{
+				LOG_ERR("Failed to decativate LTE and enable GNSS functional mode");
+				break;
+			}
+
+			k_sem_give(&sem_lte_busy); // Release the LTE semaphore
+			setOnboardLed(false);
+		}
+
+		else
+		{
+			k_sleep(K_MSEC(200));
+		}
 	}
 }
 
@@ -135,6 +192,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 			LOG_INF("Waiting for LTE connection\n\r");
 			k_sem_take(&lte_connected, K_FOREVER); // Wait for the LTE connection to be established
 			LOG_INF("LTE connected\n\r");
+
 			// Send the data to the server
 			if (resolve_address_lock == 0)
 			{
@@ -203,8 +261,9 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 void main(void)
 {
 	LOG_INF("Main Unit Version %s started\n", CONFIG_DEVICE_VERSION);
-
 	int err;
+	device_status = status_nolte;
+
 	err = led_button_init();
 	if (err)
 	{
@@ -238,15 +297,15 @@ void main(void)
 	}
 	k_sem_give(&sem_lte_busy); // Release the LTE semaphore
 
-	k_thread_create(&sensor_thread_data, sensor_thread_stack,
-					STACKSIZE, sensor_thread, NULL, NULL, NULL,
-					SENSOR_THREAD_PRIORITY, 0, K_NO_WAIT);
+	download_thread_id = k_thread_create(&download_thread_data, download_thread_stack,
+										 STACKSIZE, download_thread, NULL, NULL, NULL,
+										 UPLOAD_THREAD_PRIORITY, 0, K_NO_WAIT);
 
-	k_thread_create(&upload_thread_data, upload_thread_stack,
-					STACKSIZE, upload_thread, NULL, NULL, NULL,
-					UPLOAD_THREAD_PRIORITY, 0, K_NO_WAIT);
+	upload_thread_id = k_thread_create(&upload_thread_data, upload_thread_stack,
+									   STACKSIZE, upload_thread, NULL, NULL, NULL,
+									   UPLOAD_THREAD_PRIORITY, 0, K_NO_WAIT);
 
-	k_thread_create(&gnss_thread_data, gps_thread_stack,
-					STACKSIZE, gnss_thread, NULL, NULL, NULL,
-					GPS_THREAD_PRIORITY, 0, K_NO_WAIT);
+	gnss_thread_id = k_thread_create(&gnss_thread_data, gps_thread_stack,
+									 STACKSIZE, gnss_thread, NULL, NULL, NULL,
+									 GPS_THREAD_PRIORITY, 0, K_NO_WAIT);
 }
