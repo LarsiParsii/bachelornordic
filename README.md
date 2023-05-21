@@ -10,10 +10,10 @@ Jonathan
 
 
 FILES
-- main_unit			Contain the code for the main unit. Comprises CoAP, GNSS, LTE, and sensor functionality. Build for nrf9160dk_nrf9160_ns.
-- vessel_unit		Contain code for the vessel unit. It has CoAP, GNSS, and LTE functionality, but is not able to read the Main Unit's CoAP resource. Build for nrf9160dk_nrf9160_ns.
-- main_unit_ble		Contains code meant for the main unit. It acts as a working Bluetooth LE peripheral, broadcasting its GSS service along with Device Information Service (DIS). Test with the nRF Connect app. Build for nrf52840dk_nrf52840.
-- vessel_unit_ble	Contain code meant for the vessel unit. It acts as a Bleutooth LE central, automatically connecting to main units over BLE which have a specific model number in their Device Information Service (DIS). Build for nrf52840dk_nrf52840.
+- main_unit - Contain the code for the main unit. Comprises CoAP, GNSS, LTE, and sensor functionality. Build for nrf9160dk_nrf9160_ns.
+- vessel_unit - Contain code for the vessel unit. It has CoAP, GNSS, and LTE functionality, but is not able to read the Main Unit's CoAP resource. Build for nrf9160dk_nrf9160_ns.
+- main_unit_ble - Contains code meant for the main unit. It acts as a working Bluetooth LE peripheral, broadcasting its GSS service along with Device Information Service (DIS). Test with the nRF Connect app. Build for nrf52840dk_nrf52840.
+- vessel_unit_ble - Contain code meant for the vessel unit. It acts as a Bleutooth LE central, automatically connecting to main units over BLE which have a specific model number in their Device Information Service (DIS). Build for nrf52840dk_nrf52840.
 
 
 NOTES
