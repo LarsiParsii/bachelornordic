@@ -1,5 +1,4 @@
-# bachelornordic
-Repository for group E2316's bachelor project (IELET2900)
+# Group E2316's bachelor project (IELET2900)
 https://github.com/LarsiParsii/bachelornordic
 
 By:
