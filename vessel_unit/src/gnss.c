@@ -1,4 +1,5 @@
 #include "gnss.h"
+#include "led_button.h"
 #include <stdio.h>
 #include <zephyr/logging/log.h>
 #include <nrf_modem_gnss.h>
@@ -7,7 +8,6 @@
 LOG_MODULE_REGISTER(GNSS, LOG_LEVEL_DBG);
 
 /* VARIABLES */
-extern enum tracker_status device_status;
 
 /* FUNCTION DEFINITIONS */
 void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data)
@@ -29,7 +29,6 @@ static void gnss_event_handler(int event)
 	{
 	case NRF_MODEM_GNSS_EVT_PVT:
 		LOG_DBG("Searching for GNSS Satellites....\n\r");
-		device_status = status_searching;
 		break;
 	case NRF_MODEM_GNSS_EVT_FIX:
 		LOG_INF("GNSS fix event\n\r");
@@ -42,12 +41,12 @@ static void gnss_event_handler(int event)
 		break;
 	case NRF_MODEM_GNSS_EVT_SLEEP_AFTER_FIX:
 		LOG_INF("GNSS enters sleep because fix was achieved in periodic mode\n\r");
-		device_status = status_fixed;
 		retval = nrf_modem_gnss_read(&vessel_last_pvt, sizeof(vessel_last_pvt), NRF_MODEM_GNSS_DATA_PVT);
 		if (retval == 0)
 		{
-			current_pvt = vessel_last_pvt;
-			print_fix_data(&current_pvt);
+			setOnboardLed(true);
+			vessel_current_pvt = vessel_last_pvt;
+			print_fix_data(&vessel_current_pvt);
 			k_sem_give(&sem_send_new_data);
 		}
 		break;
@@ -127,23 +126,19 @@ double generate_random_double(double min, double max)
 	return min + fraction * (max - min);			  // Scale to [min, max]
 }
 
-void createFauxFix(void)
+void createFauxFix(struct nrf_modem_gnss_pvt_data_frame *pvt_data)
 {
 	LOG_INF("Faux GNSS fix requested");
-	current_pvt = vessel_last_pvt;
-	
-	current_pvt.latitude = generate_random_double(-90, 90);
-	current_pvt.longitude = generate_random_double(-180, 180);
-	current_pvt.altitude = generate_random_double(0, 1000);
-	current_pvt.accuracy = generate_random_double(0, 100);
-	current_pvt.datetime.day = sys_rand32_get() % 31;
-	current_pvt.datetime.month = sys_rand32_get() % 12;
-	current_pvt.datetime.year = 2023;
-	current_pvt.datetime.hour = sys_rand32_get() % 24;
-	current_pvt.datetime.minute = sys_rand32_get() % 60;
-	current_pvt.datetime.seconds = sys_rand32_get() % 60;
-	current_pvt.datetime.ms = sys_rand32_get() % 1000;
-	
-	print_fix_data(&current_pvt);
-	k_sem_give(&sem_send_new_data);
+
+	pvt_data->latitude = generate_random_double(-90, 90);
+	pvt_data->longitude = generate_random_double(-180, 180);
+	pvt_data->altitude = generate_random_double(0, 1000);
+	pvt_data->accuracy = generate_random_double(0, 100);
+	pvt_data->datetime.day = sys_rand32_get() % 31;
+	pvt_data->datetime.month = sys_rand32_get() % 12;
+	pvt_data->datetime.year = 2023;
+	pvt_data->datetime.hour = sys_rand32_get() % 24;
+	pvt_data->datetime.minute = sys_rand32_get() % 60;
+	pvt_data->datetime.seconds = sys_rand32_get() % 60;
+	pvt_data->datetime.ms = sys_rand32_get() % 1000;
 }

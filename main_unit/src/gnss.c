@@ -31,7 +31,7 @@ static void gnss_event_handler(int event)
 	switch (event)
 	{
 	case NRF_MODEM_GNSS_EVT_PVT:
-		LOG_INF("Searching for GNSS Satellites....\n\r");
+		LOG_DBG("Searching for GNSS Satellites....\n\r");
 		break;
 	case NRF_MODEM_GNSS_EVT_FIX:
 		LOG_INF("GNSS fix event\n\r");
@@ -54,7 +54,7 @@ static void gnss_event_handler(int event)
 		}
 		break;
 	case NRF_MODEM_GNSS_EVT_SLEEP_AFTER_TIMEOUT:
-		LOG_INF("GNSS enters sleep because fix retry timeout was reached\n\r");
+		LOG_DBG("GNSS enters sleep because fix retry timeout was reached\n\r");
 		break;
 
 	default:
@@ -105,7 +105,7 @@ int gnss_init_and_start(void)
 		LOG_ERR("Failed to start GNSS");
 		return -1;
 	}
-	if (nrf_modem_gnss_prio_mode_disable() != 0)		// DISABLED GNSS PRIORITY MODE
+	if (nrf_modem_gnss_prio_mode_disable() != 0) // DISABLED GNSS PRIORITY MODE
 	{
 		LOG_ERR("Error setting GNSS priority mode");
 		return -1;
@@ -120,21 +120,19 @@ double generate_random_double(double min, double max)
 	return min + fraction * (max - min);			  // Scale to [min, max]
 }
 
-void createFauxFix(void)
+void createFauxFix(struct nrf_modem_gnss_pvt_data_frame *pvt_data)
 {
 	LOG_INF("Faux GNSS fix requested");
-	
-	current_pvt.latitude = generate_random_double(-90, 90);
-	current_pvt.longitude = generate_random_double(-180, 180);
-	current_pvt.altitude = generate_random_double(0, 1000);
-	current_pvt.accuracy = generate_random_double(0, 100);
-	current_pvt.datetime.day = sys_rand32_get() % 31;
-	current_pvt.datetime.month = sys_rand32_get() % 12;
-	current_pvt.datetime.year = 2023;
-	current_pvt.datetime.hour = sys_rand32_get() % 24;
-	current_pvt.datetime.minute = sys_rand32_get() % 60;
-	current_pvt.datetime.seconds = sys_rand32_get() % 60;
-	current_pvt.datetime.ms = sys_rand32_get() % 1000;
-	
-	print_fix_data(&current_pvt);
+
+	pvt_data->latitude = generate_random_double(-90, 90);
+	pvt_data->longitude = generate_random_double(-180, 180);
+	pvt_data->altitude = generate_random_double(0, 1000);
+	pvt_data->accuracy = generate_random_double(0, 100);
+	pvt_data->datetime.day = sys_rand32_get() % 31;
+	pvt_data->datetime.month = sys_rand32_get() % 12;
+	pvt_data->datetime.year = 2023;
+	pvt_data->datetime.hour = sys_rand32_get() % 24;
+	pvt_data->datetime.minute = sys_rand32_get() % 60;
+	pvt_data->datetime.seconds = sys_rand32_get() % 60;
+	pvt_data->datetime.ms = sys_rand32_get() % 1000;
 }

@@ -24,7 +24,6 @@ static const struct gpio_dt_spec button2 = GPIO_DT_SPEC_GET(BUTTON2_NODE, gpios)
 void button1_pressed(const struct device *dev, struct gpio_callback *cb, uint32_t pins)
 {	
     LOG_DBG("Button 1 pressed\n");
-	setOnboardLed(true);
 	faux_gnss_fix_requested = true;
 }
 

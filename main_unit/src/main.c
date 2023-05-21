@@ -20,7 +20,7 @@ LOG_MODULE_REGISTER(main_c_, LOG_LEVEL_DBG);
 #define STACKSIZE 2048
 
 #define APP_COAP_MAX_MSG_LEN 1280
-#define APP_COAP_SEND_MAX_MSG_LEN 64
+#define APP_COAP_SEND_MAX_MSG_LEN 128
 
 static uint8_t coap_buf[APP_COAP_MAX_MSG_LEN];
 static uint8_t coap_databuf[APP_COAP_SEND_MAX_MSG_LEN];
@@ -77,7 +77,7 @@ void sensor_thread(void *arg1, void *arg2, void *arg3)
 				sensors.bme280.temperature.val1, sensors.bme280.temperature.val2, sensors.bme280.pressure.val1, sensors.bme280.pressure.val2,
 				sensors.bme280.humidity.val1, sensors.bme280.humidity.val2);
 
-		if (sensors.bme280.humidity.val1 > 65 && mob_event == false)
+		if (sensors.bme280.humidity.val1 > 60 && mob_event == false)
 		{
 			LOG_WRN("MOB ALERT!");
 			mob_event = true;
@@ -102,7 +102,9 @@ void gnss_thread(void *arg1, void *arg2, void *arg3)
 		// This happens in the gnss_event_handler() function in gnss.c.
 		if (faux_gnss_fix_requested)
 		{
-			createFauxFix();
+			setOnboardLed(true);
+			createFauxFix(&current_pvt);
+			print_fix_data(&current_pvt);
 			k_sem_give(&sem_send_new_data);	 // Signals that there's updated data to send
 			faux_gnss_fix_requested = false; // Reset the flag
 		}
@@ -135,6 +137,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 			LOG_INF("Waiting for LTE connection\n\r");
 			k_sem_take(&lte_connected, K_FOREVER); // Wait for the LTE connection to be established
 			LOG_INF("LTE connected\n\r");
+			
 			// Send the data to the server
 			if (resolve_address_lock == 0)
 			{
@@ -154,7 +157,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 			}
 
 			if (client_post_send(sock_tx, coap_buf, sizeof(coap_buf), coap_databuf, sizeof(coap_databuf),
-								 current_pvt, NULL) != 0)
+								 current_pvt, mob_event) != 0)
 			{
 				LOG_ERR("Failed to send GET request, exit...\n");
 				break;

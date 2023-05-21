@@ -13,18 +13,14 @@
 extern struct k_sem sem_send_new_data;
 
 /* VARIABLES */
-extern struct nrf_modem_gnss_pvt_data_frame current_pvt;
+extern struct nrf_modem_gnss_pvt_data_frame vessel_current_pvt;
 extern struct nrf_modem_gnss_pvt_data_frame vessel_last_pvt;
-enum tracker_status
-{
-	status_nolte = DK_LED1,
-	status_searching = DK_LED2,
-	status_fixed = DK_LED3
-};
+extern struct nrf_modem_gnss_pvt_data_frame main_unit_current_pvt;
+extern struct nrf_modem_gnss_pvt_data_frame main_unit_last_pvt;
 
 /* FUNCTION PROTOTYPES */
 void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data);
 int gnss_init_and_start(void);
-void createFauxFix(void);
+void createFauxFix(struct nrf_modem_gnss_pvt_data_frame *pvt_data);
 
 #endif // GNSS_H

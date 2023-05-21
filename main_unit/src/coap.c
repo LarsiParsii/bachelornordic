@@ -103,6 +103,15 @@ int server_connect(int sock)
 		LOG_ERR("Failed to setup socket security tag, errno %d\n", errno);
 		return -errno;
 	}
+	
+	int cache = TLS_SESSION_CACHE_ENABLED;
+	err = setsockopt(sock, SOL_TLS, TLS_SESSION_CACHE, &cache,
+					 sizeof(cache));
+	if (err)
+	{
+		LOG_ERR("Failed to setup TLS session cache, errno %d\n", errno);
+		return -errno;
+	}
 
 	err = connect(sock, (struct sockaddr *)&server,
 				  sizeof(struct sockaddr_in));
@@ -162,7 +171,7 @@ int client_handle_get_response(uint8_t *buf, int received)
 }
 
 int client_post_send(int sock, uint8_t *buf, size_t buf_size, uint8_t *sendbuf, size_t sendbuf_size,
-							struct nrf_modem_gnss_pvt_data_frame current_pvt, bool mob_value)
+					 struct nrf_modem_gnss_pvt_data_frame current_pvt, bool mob_value)
 {
 	int err, ret;
 	struct coap_packet request;

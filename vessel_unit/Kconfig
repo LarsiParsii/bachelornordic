@@ -24,6 +24,10 @@ config COAP_TX_RESOURCE
 	string "Parent CoAP resource - this is the parent resource of your device resource name"
 	default "echo"
 
+config COAP_RX_RESOURCE
+	string "Parent CoAP resource - this is the parent resource of your device resource name"
+	default "echo"
+
 config COAP_SERVER_HOSTNAME
 	string "CoAP server hostname"
 	default "californium.eclipseprojects.io"

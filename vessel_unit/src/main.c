@@ -1,7 +1,6 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
-#include <modem/modem_key_mgmt.h>
 #include <zephyr/logging/log.h>
 #include <dk_buttons_and_leds.h>
 #include <zephyr/sys/printk.h>
@@ -20,16 +19,17 @@ LOG_MODULE_REGISTER(main_c_, LOG_LEVEL_DBG);
 #define STACKSIZE 2048
 
 #define APP_COAP_MAX_MSG_LEN 1280
-#define APP_COAP_SEND_MAX_MSG_LEN 64
+#define APP_COAP_SEND_MAX_MSG_LEN 128
 static uint8_t coap_buf[APP_COAP_MAX_MSG_LEN];			// Holds the CoAP message
+static uint8_t coap_buf_rec[APP_COAP_MAX_MSG_LEN];			// Holds the CoAP message
 static uint8_t coap_databuf[APP_COAP_SEND_MAX_MSG_LEN]; // Holds the data to send in the CoAP message
 
-enum tracker_status device_status;
-struct nrf_modem_gnss_pvt_data_frame last_pvt;
-struct nrf_modem_gnss_pvt_data_frame current_pvt;
+struct nrf_modem_gnss_pvt_data_frame vessel_current_pvt;
+struct nrf_modem_gnss_pvt_data_frame vessel_last_pvt;
+struct nrf_modem_gnss_pvt_data_frame main_unit_current_pvt;
+struct nrf_modem_gnss_pvt_data_frame main_unit_last_pvt;
 static int resolve_address_lock = 0;
-static int sock_tx;
-static int sock_rx;
+static int sock;
 bool shutdown_flag = false;					   // Flag to signal a fault that should shut down the system
 volatile bool faux_gnss_fix_requested = false; // Generate fake GPS data for testing purposes
 volatile bool download_data = false;		   // Flag to signal that data should be downloaded
@@ -67,13 +67,15 @@ void gnss_thread(void *arg1, void *arg2, void *arg3)
 		// This happens in the gnss_event_handler() function in gnss.c.
 		if (faux_gnss_fix_requested)
 		{
-			faux_gnss_fix_requested = false; // Reset the flag
 			setOnboardLed(true);
-			createFauxFix();
+			createFauxFix(&vessel_current_pvt);
+			print_fix_data(&vessel_current_pvt);
+			k_sem_give(&sem_send_new_data);	 // Signals that there's updated data to send
+			faux_gnss_fix_requested = false; // Reset the flag
 		}
 		if (download_data == true)
 		{
-			download_data = false;		   // Reset the flag
+			download_data = false; // Reset the flag
 			setOnboardLed(true);
 			k_sem_give(&sem_get_new_data); // Signals that there's updated data to send
 		}
@@ -91,13 +93,14 @@ void download_thread(void *arg1, void *arg2, void *arg3)
 		if (shutdown_flag)
 		{
 			lte_lc_power_off();
-			LOG_ERR("Shutting down upload thread...");
+			LOG_ERR("Shutting down download thread...");
 			break;
 		}
 
 		if ((k_sem_take(&sem_get_new_data, K_FOREVER) == 0) && (k_sem_take(&sem_lte_busy, K_FOREVER) == 0)) // Wait for data to send
 		{
-			LOG_INF("Starting download...\n\r");
+			LOG_INF("Downloading data over LTE\n\r");
+			
 			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
 			if (err != 0)
 			{
@@ -108,7 +111,6 @@ void download_thread(void *arg1, void *arg2, void *arg3)
 			k_sem_take(&lte_connected, K_FOREVER); // Wait for the LTE connection to be established
 			LOG_INF("LTE connected\n\r");
 
-			// Send the data to the server
 			if (resolve_address_lock == 0)
 			{
 				LOG_INF("Resolving the server address\n\r");
@@ -119,14 +121,20 @@ void download_thread(void *arg1, void *arg2, void *arg3)
 				}
 				resolve_address_lock = 1;
 			}
-			LOG_INF("Receiving Data over LTE\r\n");
-			if (server_connect(sock_tx) != 0)
+
+			LOG_INF("Downloading Data over LTE\r\n");
+			if (server_connect(sock) != 0)
 			{
 				LOG_ERR("Failed to initialize CoAP client\n");
 				return;
 			}
-			
-			received = recv(sock_tx, coap_buf, sizeof(coap_buf), 0);
+
+			if (client_get_send(sock, coap_buf, sizeof(coap_buf)) != 0)
+			{
+				LOG_ERR("Failed to send GET request, exit...\n");
+				break;
+			}
+			received = recv(sock, coap_buf_rec, sizeof(coap_buf_rec), 0);
 
 			if (received < 0)
 			{
@@ -140,22 +148,23 @@ void download_thread(void *arg1, void *arg2, void *arg3)
 				break;
 			}
 
-			// Read it back
-			err = client_handle_get_response(coap_buf, received);
+			// Handle the response
+			err = client_handle_get_response(coap_buf_rec, received);
 			if (err < 0)
 			{
 				LOG_ERR("Invalid response, exit...\n");
 				break;
 			}
 
-			(void)close(sock_tx);
+			(void)close(sock);
 			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_DEACTIVATE_LTE);
 			if (err != 0)
 			{
-				LOG_ERR("Failed to decativate LTE and enable GNSS functional mode");
+				LOG_ERR("Failed to deactivate LTE and enable GNSS functional mode");
 				break;
 			}
 
+			LOG_INF("Data received successfully\n\r");
 			k_sem_give(&sem_lte_busy); // Release the LTE semaphore
 			setOnboardLed(false);
 		}
@@ -166,6 +175,7 @@ void download_thread(void *arg1, void *arg2, void *arg3)
 		}
 	}
 }
+
 
 void upload_thread(void *arg1, void *arg2, void *arg3)
 {
@@ -183,6 +193,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 		if ((k_sem_take(&sem_send_new_data, K_FOREVER) == 0) && (k_sem_take(&sem_lte_busy, K_FOREVER) == 0)) // Wait for data to send
 		{
 			LOG_INF("Sending data over LTE\n\r");
+			
 			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_NORMAL);
 			if (err != 0)
 			{
@@ -205,19 +216,19 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 				resolve_address_lock = 1;
 			}
 			LOG_INF("Sending Data over LTE\r\n");
-			if (server_connect(sock_tx) != 0)
+			if (server_connect(sock) != 0)
 			{
 				LOG_ERR("Failed to initialize CoAP client\n");
 				return;
 			}
 
-			if (client_post_send(sock_tx, coap_buf, sizeof(coap_buf), coap_databuf, sizeof(coap_databuf),
-								 current_pvt, NULL) != 0)
+			if (client_post_send(sock, coap_buf, sizeof(coap_buf), coap_databuf, sizeof(coap_databuf),
+								 vessel_current_pvt, NULL) != 0)
 			{
-				LOG_ERR("Failed to send GET request, exit...\n");
+				LOG_ERR("Failed to send POST request, exit...\n");
 				break;
 			}
-			received = recv(sock_tx, coap_buf, sizeof(coap_buf), 0);
+			received = recv(sock, coap_buf, sizeof(coap_buf), 0);
 
 			if (received < 0)
 			{
@@ -239,7 +250,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 				break;
 			}
 
-			(void)close(sock_tx);
+			(void)close(sock);
 			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_DEACTIVATE_LTE);
 			if (err != 0)
 			{
@@ -247,6 +258,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 				break;
 			}
 
+			LOG_INF("Data transmitted and readback successfull\n\r");
 			k_sem_give(&sem_lte_busy); // Release the LTE semaphore
 			setOnboardLed(false);
 		}
@@ -260,9 +272,8 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 
 void main(void)
 {
-	LOG_INF("Main Unit Version %s started\n", CONFIG_DEVICE_VERSION);
+	LOG_INF("Vessel Unit Version %s started\n", CONFIG_DEVICE_VERSION);
 	int err;
-	device_status = status_nolte;
 
 	err = led_button_init();
 	if (err)
@@ -271,22 +282,11 @@ void main(void)
 		return;
 	}
 	setOnboardLed(false);
-
-	LOG_INF("Initializing LTE for upload....");
-
-	err = modem_key_mgmt_write(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_IDENTITY, CONFIG_COAP_DEVICE_NAME, strlen(CONFIG_COAP_DEVICE_NAME));
-	if (err)
-	{
-		LOG_ERR("Failed to write identity: %d\n", err);
-		return;
-	}
-
-	err = modem_key_mgmt_write(SEC_TAG, MODEM_KEY_MGMT_CRED_TYPE_PSK, CONFIG_COAP_SERVER_PSK, strlen(CONFIG_COAP_SERVER_PSK));
-	if (err)
-	{
-		LOG_ERR("Failed to write identity: %d\n", err);
-		return;
-	}
+	
+	// Setup SEC_TAG_DOWNLOAD and SEC_TAG_UPLOAD
+	setup_sec_tags();
+	
+	
 	modem_configure();
 
 	LOG_INF("Starting GNSS....");

@@ -6,7 +6,6 @@
 #include <modem/lte_lc.h>
 
 /* DEFINES */
-#define SEC_TAG 12
 
 /* SEMAPHORES */
 extern struct k_sem lte_connected;

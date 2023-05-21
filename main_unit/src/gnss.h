@@ -18,6 +18,6 @@ extern struct nrf_modem_gnss_pvt_data_frame last_pvt;
 /* FUNCTION PROTOTYPES */
 void print_fix_data(struct nrf_modem_gnss_pvt_data_frame *pvt_data);
 int gnss_init_and_start(void);
-void createFauxFix(void);
+void createFauxFix(struct nrf_modem_gnss_pvt_data_frame *pvt_data);
 
 #endif // GNSS_H
