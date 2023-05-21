@@ -27,7 +27,7 @@ static uint8_t coap_databuf[APP_COAP_SEND_MAX_MSG_LEN];
 struct nrf_modem_gnss_pvt_data_frame current_pvt;
 struct nrf_modem_gnss_pvt_data_frame last_pvt;
 static int resolve_address_lock = 0;
-static int sock_tx;
+static int sock;
 bool shutdown_flag = false;					   // Flag to signal a fault that should shut down the system
 volatile bool faux_gnss_fix_requested = false; // Generate fake GPS data for testing purposes
 volatile bool mob_event = false;			   // Flag to signal a Man Overboard (MOB) event
@@ -150,19 +150,19 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 				resolve_address_lock = 1;
 			}
 			LOG_INF("Sending Data over LTE\r\n");
-			if (server_connect(sock_tx) != 0)
+			if (server_connect(sock) != 0)
 			{
 				LOG_ERR("Failed to initialize CoAP client\n");
 				return;
 			}
 
-			if (client_post_send(sock_tx, coap_buf, sizeof(coap_buf), coap_databuf, sizeof(coap_databuf),
+			if (client_post_send(sock, coap_buf, sizeof(coap_buf), coap_databuf, sizeof(coap_databuf),
 								 current_pvt, mob_event) != 0)
 			{
 				LOG_ERR("Failed to send GET request, exit...\n");
 				break;
 			}
-			received = recv(sock_tx, coap_buf, sizeof(coap_buf), 0);
+			received = recv(sock, coap_buf, sizeof(coap_buf), 0);
 
 			if (received < 0)
 			{
@@ -184,7 +184,7 @@ void upload_thread(void *arg1, void *arg2, void *arg3)
 				break;
 			}
 
-			(void)close(sock_tx);
+			(void)close(sock);
 			err = lte_lc_func_mode_set(LTE_LC_FUNC_MODE_DEACTIVATE_LTE);
 			if (err != 0)
 			{
